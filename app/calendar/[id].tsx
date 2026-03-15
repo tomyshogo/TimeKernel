@@ -38,7 +38,7 @@ export default function CalendarDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           await deleteCalendar(id!, uid);
-          const updatedProfile = await getOrCreateUser(uid);
+          const { profile: updatedProfile } = await getOrCreateUser(uid);
           setProfile(updatedProfile);
           router.back();
         },
@@ -54,7 +54,7 @@ export default function CalendarDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           await leaveCalendar(id!, uid);
-          const updatedProfile = await getOrCreateUser(uid);
+          const { profile: updatedProfile } = await getOrCreateUser(uid);
           setProfile(updatedProfile);
           router.back();
         },

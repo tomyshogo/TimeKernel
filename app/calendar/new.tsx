@@ -18,7 +18,7 @@ export default function NewCalendarScreen() {
     setLoading(true);
     try {
       await createCalendar(name.trim(), uid);
-      const updatedProfile = await getOrCreateUser(uid);
+      const { profile: updatedProfile } = await getOrCreateUser(uid);
       setProfile(updatedProfile);
       router.back();
     } finally {

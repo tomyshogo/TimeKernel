@@ -22,7 +22,7 @@ export default function JoinCalendarScreen() {
     try {
       const success = await joinCalendar(calendarId, uid);
       if (success) {
-        const updatedProfile = await getOrCreateUser(uid);
+        const { profile: updatedProfile } = await getOrCreateUser(uid);
         setProfile(updatedProfile);
         router.back();
       } else {

@@ -3,9 +3,10 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
+import OnboardingScreen from './onboarding';
 
 export default function RootLayout() {
-  const { isLoading } = useAuth();
+  const { isLoading, isNewUser } = useAuth();
 
   if (isLoading) {
     return (
@@ -13,6 +14,10 @@ export default function RootLayout() {
         <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
+  }
+
+  if (isNewUser) {
+    return <OnboardingScreen />;
   }
 
   return (

@@ -4,15 +4,18 @@ import { subscribeToAuth, signInAnonymous } from '../services/auth';
 import { getOrCreateUser, getUserSettings } from '../services/userService';
 
 export function useAuth() {
-  const { uid, isLoading, profile, settings, setUid, setLoading, setProfile, setSettings } =
-    useAuthStore();
+  const {
+    uid, isLoading, isNewUser, profile, settings,
+    setUid, setLoading, setIsNewUser, setProfile, setSettings,
+  } = useAuthStore();
 
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (user) => {
       if (user) {
         setUid(user.uid);
-        const userProfile = await getOrCreateUser(user.uid);
+        const { profile: userProfile, isNewUser: isNew } = await getOrCreateUser(user.uid);
         setProfile(userProfile);
+        setIsNewUser(isNew);
         const userSettings = await getUserSettings(user.uid);
         setSettings(userSettings);
       } else {
@@ -24,5 +27,5 @@ export function useAuth() {
     return unsubscribe;
   }, []);
 
-  return { uid, isLoading, profile, settings };
+  return { uid, isLoading, isNewUser, profile, settings };
 }

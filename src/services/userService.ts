@@ -13,10 +13,13 @@ import { DEFAULT_PERIODS } from '../types/timetable';
 const usersRef = (uid: string) => doc(db, 'users', uid);
 const settingsRef = (uid: string) => doc(db, 'users', uid, 'settings', 'general');
 
-export async function getOrCreateUser(uid: string, name?: string): Promise<UserProfile> {
+export async function getOrCreateUser(
+  uid: string,
+  name?: string
+): Promise<{ profile: UserProfile; isNewUser: boolean }> {
   const snap = await getDoc(usersRef(uid));
   if (snap.exists()) {
-    return snap.data() as UserProfile;
+    return { profile: snap.data() as UserProfile, isNewUser: false };
   }
 
   const profile: UserProfile = {
@@ -31,7 +34,7 @@ export async function getOrCreateUser(uid: string, name?: string): Promise<UserP
   };
   await setDoc(settingsRef(uid), settings);
 
-  return profile;
+  return { profile, isNewUser: true };
 }
 
 export async function updateUserName(uid: string, name: string): Promise<void> {
