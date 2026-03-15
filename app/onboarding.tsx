@@ -44,6 +44,16 @@ export default function OnboardingScreen() {
     }
   };
 
+  if (isSubmitting) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3498db" />
+        <Text style={styles.loadingText}>準備しています...</Text>
+        <Text style={styles.loadingSubtext}>マイカレンダーを作成中</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -75,13 +85,9 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={[styles.button, !name.trim() && styles.buttonDisabled]}
           onPress={handleComplete}
-          disabled={!name.trim() || isSubmitting}
+          disabled={!name.trim()}
         >
-          {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>はじめる</Text>
-          )}
+          <Text style={styles.buttonText}>はじめる</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -138,5 +144,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginTop: 24,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginTop: 8,
   },
 });
