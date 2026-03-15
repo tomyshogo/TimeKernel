@@ -1,0 +1,64 @@
+import React from 'react';
+import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useAuth } from '../src/hooks/useAuth';
+
+export default function RootLayout() {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#3498db" />
+      </View>
+    );
+  }
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#2c3e50',
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="event/new"
+          options={{ title: '予定を追加', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="event/[id]"
+          options={{ title: '予定を編集', presentation: 'modal' }}
+        />
+        <Stack.Screen name="calendar/index" options={{ title: 'カレンダー管理' }} />
+        <Stack.Screen name="calendar/new" options={{ title: 'カレンダー作成' }} />
+        <Stack.Screen name="calendar/[id]" options={{ title: 'カレンダー詳細' }} />
+        <Stack.Screen
+          name="calendar/join"
+          options={{ title: 'カレンダーに参加' }}
+        />
+        <Stack.Screen name="share/[calendarId]" options={{ title: '共有' }} />
+        <Stack.Screen
+          name="timetable/[id]"
+          options={{ title: '時間割編集' }}
+        />
+        <Stack.Screen
+          name="timetable/slot-edit"
+          options={{ title: '科目編集', presentation: 'modal' }}
+        />
+      </Stack>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+});
