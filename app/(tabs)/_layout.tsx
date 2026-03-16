@@ -32,6 +32,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="tasks"
+        options={{
+          title: '課題',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'✅'}</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="pomodoro"
+        options={{
+          title: 'タイマー',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'🍅'}</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="shifts"
         options={{
           title: 'バイト',

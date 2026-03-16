@@ -78,6 +78,18 @@ export default function RootLayout() {
           name="external-calendars/add-ical"
           options={{ title: 'iCal URL 購読' }}
         />
+        <Stack.Screen
+          name="task/new"
+          options={{ title: '課題を追加', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="task/[id]"
+          options={{ title: '課題を編集', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="study-stats"
+          options={{ title: '勉強統計' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
