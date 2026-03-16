@@ -18,15 +18,21 @@ export function MemberList({
   const [names, setNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    let cancelled = false;
     const fetchNames = async () => {
       const nameMap: Record<string, string> = {};
       for (const uid of memberUids) {
-        const profile = await getUserProfile(uid);
-        nameMap[uid] = profile?.name || '名前なし';
+        try {
+          const profile = await getUserProfile(uid);
+          nameMap[uid] = profile?.name || '名前なし';
+        } catch {
+          nameMap[uid] = '取得失敗';
+        }
       }
-      setNames(nameMap);
+      if (!cancelled) setNames(nameMap);
     };
     fetchNames();
+    return () => { cancelled = true; };
   }, [memberUids]);
 
   const isCreator = currentUid === creatorUid;

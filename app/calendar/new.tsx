@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -21,6 +21,8 @@ export default function NewCalendarScreen() {
       const { profile: updatedProfile } = await getOrCreateUser(uid);
       setProfile(updatedProfile);
       router.back();
+    } catch {
+      Alert.alert('エラー', 'カレンダーの作成に失敗しました');
     } finally {
       setLoading(false);
     }

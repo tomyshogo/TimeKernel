@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Card } from '../src/components/ui/Card';
 import { useAuthStore } from '../src/stores/authStore';
@@ -52,9 +53,14 @@ export default function StudyStatsScreen() {
       }
     }
 
-    const records = await getStudyRecords(uid, startDate, endDate);
-    setSummary(summarizeStudyRecords(records));
-    setLoading(false);
+    try {
+      const records = await getStudyRecords(uid, startDate, endDate);
+      setSummary(summarizeStudyRecords(records));
+    } catch {
+      Alert.alert('エラー', '勉強記録の取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatMinutes = (minutes: number) => {

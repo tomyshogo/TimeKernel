@@ -42,7 +42,14 @@ export default function NewPollScreen() {
   };
 
   const removeCandidate = (index: number) => {
-    setCandidates((prev) => prev.filter((_, i) => i !== index));
+    Alert.alert('確認', 'この候補を削除しますか？', [
+      { text: 'キャンセル' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => setCandidates((prev) => prev.filter((_, i) => i !== index)),
+      },
+    ]);
   };
 
   const handleSubmit = async () => {
@@ -54,17 +61,20 @@ export default function NewPollScreen() {
       ? Timestamp.fromDate(new Date(`${deadlineDate}T23:59:00`))
       : Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
-    await createPoll(calendarId, {
-      title: title.trim(),
-      createdBy: uid,
-      deadline,
-      status: 'open',
-      confirmedSlot: null,
-      candidates,
-    });
-
-    Alert.alert('投票を作成しました');
-    router.back();
+    try {
+      await createPoll(calendarId, {
+        title: title.trim(),
+        createdBy: uid,
+        deadline,
+        status: 'open',
+        confirmedSlot: null,
+        candidates,
+      });
+      Alert.alert('投票を作成しました');
+      router.back();
+    } catch {
+      Alert.alert('エラー', '投票の作成に失敗しました');
+    }
   };
 
   return (

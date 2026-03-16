@@ -39,13 +39,15 @@ export default function PollDetailScreen() {
 
   useEffect(() => {
     if (!id || !calendarId) return;
-    getPoll(calendarId, id).then((p) => {
-      setPoll(p);
-      if (p) {
-        setMyResponses(p.candidates.map((_, i) => ({ candidateIndex: i, answer: 'ok' as VoteAnswer })));
-      }
-      setLoading(false);
-    });
+    getPoll(calendarId, id)
+      .then((p) => {
+        setPoll(p);
+        if (p) {
+          setMyResponses(p.candidates.map((_, i) => ({ candidateIndex: i, answer: 'ok' as VoteAnswer })));
+        }
+      })
+      .catch(() => Alert.alert('エラー', '投票の読み込みに失敗しました'))
+      .finally(() => setLoading(false));
   }, [id, calendarId]);
 
   useEffect(() => {
@@ -70,26 +72,34 @@ export default function PollDetailScreen() {
 
   const handleSubmitVote = async () => {
     if (!uid || !calendarId || !id) return;
-    await submitVote(calendarId, id, { uid, responses: myResponses });
-    Alert.alert('投票しました');
+    try {
+      await submitVote(calendarId, id, { uid, responses: myResponses });
+      Alert.alert('投票しました');
+    } catch {
+      Alert.alert('エラー', '投票の送信に失敗しました');
+    }
   };
 
   const handleConfirm = async (candidateIndex: number) => {
     if (!uid || !calendarId || !id || !poll) return;
-    const slot = poll.candidates[candidateIndex];
-    await confirmPoll(calendarId, id, slot);
-    // カレンダーに予定を自動追加
-    await addEvent(calendarId, {
-      title: poll.title,
-      type: 'event',
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      color: '#9b59b6',
-      createdBy: uid,
-    });
-    Alert.alert('確定しました', 'カレンダーに予定を追加しました');
-    router.back();
+    try {
+      const slot = poll.candidates[candidateIndex];
+      await confirmPoll(calendarId, id, slot);
+      // カレンダーに予定を自動追加
+      await addEvent(calendarId, {
+        title: poll.title,
+        type: 'event',
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        color: '#9b59b6',
+        createdBy: uid,
+      });
+      Alert.alert('確定しました', 'カレンダーに予定を追加しました');
+      router.back();
+    } catch {
+      Alert.alert('エラー', '確定処理に失敗しました');
+    }
   };
 
   // 各候補の集計
