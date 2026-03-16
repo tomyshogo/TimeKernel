@@ -7,8 +7,9 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { EventType, CalendarEventInput, Calendar } from '../../types';
+import { EventType, CalendarEventInput, Calendar, RecurrenceRule } from '../../types';
 import { TypeSelector } from './TypeSelector';
+import { RecurrenceSelector } from './RecurrenceSelector';
 import { ColorPicker } from '../ui/ColorPicker';
 import { Button } from '../ui/Button';
 import { EVENT_COLORS } from '../../utils/constants';
@@ -43,6 +44,9 @@ export function EventForm({
   const [color, setColor] = useState(
     initialValues?.color || EVENT_COLORS[type]
   );
+  const [recurrence, setRecurrence] = useState<RecurrenceRule | undefined>(
+    initialValues?.recurrence
+  );
   const [calendarId, setCalendarId] = useState(selectedCalendarId);
   const [loading, setLoading] = useState(false);
 
@@ -65,6 +69,7 @@ export function EventForm({
         ...(type === 'shift' && hourlyWage
           ? { hourlyWage: parseInt(hourlyWage, 10) }
           : {}),
+        ...(recurrence ? { recurrence } : {}),
       };
       onSubmit(calendarId, event);
     } finally {
@@ -132,6 +137,9 @@ export function EventForm({
           />
         </>
       )}
+
+      <Text style={styles.label}>繰り返し</Text>
+      <RecurrenceSelector value={recurrence} onChange={setRecurrence} />
 
       {calendars.length > 1 && (
         <>

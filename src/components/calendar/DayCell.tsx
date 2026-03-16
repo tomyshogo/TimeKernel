@@ -11,10 +11,14 @@ interface Props {
   onPress: () => void;
 }
 
+const MAX_DOTS = 3;
+
 export function DayCell({ date, currentMonth, isSelected, events, onPress }: Props) {
   const today = isToday(date);
   const inMonth = isSameMonth(date, currentMonth);
-  const uniqueColors = [...new Set(events.map((e) => e.color))].slice(0, 3);
+  const uniqueColors = [...new Set(events.map((e) => e.color))];
+  const visibleColors = uniqueColors.slice(0, MAX_DOTS);
+  const overflow = events.length > MAX_DOTS ? events.length - MAX_DOTS : 0;
 
   return (
     <TouchableOpacity
@@ -33,9 +37,14 @@ export function DayCell({ date, currentMonth, isSelected, events, onPress }: Pro
         {date.getDate()}
       </Text>
       <View style={styles.dots}>
-        {uniqueColors.map((color, i) => (
+        {visibleColors.map((color, i) => (
           <View key={i} style={[styles.dot, { backgroundColor: color }]} />
         ))}
+        {overflow > 0 && (
+          <Text style={[styles.overflowText, isSelected && styles.selectedOverflow]}>
+            +{overflow}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -77,5 +86,13 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
+  },
+  overflowText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#95a5a6',
+  },
+  selectedOverflow: {
+    color: '#ffffffCC',
   },
 });

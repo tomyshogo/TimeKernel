@@ -6,6 +6,9 @@ import {
   getDay,
   addMonths,
   subMonths,
+  addDays,
+  addWeeks,
+  subWeeks,
   isSameDay,
   parseISO,
   startOfWeek,
@@ -49,4 +52,24 @@ export function parseDate(dateString: string): Date {
   return parseISO(dateString);
 }
 
-export { addMonths, subMonths, getDay, format };
+export function getWeekDays(date: Date): Date[] {
+  const weekStart = startOfWeek(date, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(date, { weekStartsOn: 0 });
+  return eachDayOfInterval({ start: weekStart, end: weekEnd });
+}
+
+export function getThreeDays(date: Date): Date[] {
+  return [date, addDays(date, 1), addDays(date, 2)];
+}
+
+export function formatWeekRange(date: Date): string {
+  const weekStart = startOfWeek(date, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(date, { weekStartsOn: 0 });
+  return `${format(weekStart, 'M/d')} - ${format(weekEnd, 'M/d')}`;
+}
+
+export function formatShortDate(date: Date): string {
+  return format(date, 'M/d(E)', { locale: ja });
+}
+
+export { addMonths, subMonths, addDays, addWeeks, subWeeks, getDay, format };

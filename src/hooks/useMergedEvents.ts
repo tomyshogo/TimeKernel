@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { CalendarEvent, Timetable } from '../types';
 import { generateTimetableEvents } from '../utils/timetableHelpers';
+import { expandRecurringEvents } from '../utils/recurrence';
 import { useAuthStore } from '../stores/authStore';
 
 export function useMergedEvents(
@@ -14,6 +15,9 @@ export function useMergedEvents(
   const mergedEvents = useMemo(() => {
     if (!uid) return firestoreEvents;
 
+    // 繰り返しイベントを展開
+    const expandedEvents = expandRecurringEvents(firestoreEvents, month);
+
     const timetableEvents = timetables.flatMap((tt) =>
       generateTimetableEvents(
         tt,
@@ -24,7 +28,7 @@ export function useMergedEvents(
       )
     );
 
-    return [...firestoreEvents, ...timetableEvents].sort((a, b) => {
+    return [...expandedEvents, ...timetableEvents].sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.startTime.localeCompare(b.startTime);
     });
