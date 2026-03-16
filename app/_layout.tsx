@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
+import { NetworkBanner } from '../src/components/ui/NetworkBanner';
 import OnboardingScreen from './onboarding';
 
 export default function RootLayout() {
@@ -22,6 +23,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <NetworkBanner />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#fff' },

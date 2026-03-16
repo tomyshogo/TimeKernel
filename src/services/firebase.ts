@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  enablePersistentCacheIndexAutoCreation,
+  getPersistentCacheIndexManager,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCcQeBTzaf6pHtT0gH-whqvXtzwvhBjohI',
@@ -14,4 +20,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Firestoreオフラインパーシステンス有効化
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
+
+// オフライン時のクエリパフォーマンス向上のため自動インデックス作成を有効化
+const indexManager = getPersistentCacheIndexManager(db);
+if (indexManager) {
+  enablePersistentCacheIndexAutoCreation(indexManager);
+}

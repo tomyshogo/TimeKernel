@@ -14,6 +14,8 @@ export interface CalendarEvent {
   createdBy: string;
   createdAt: Timestamp;
   calendarId: string;
+  /** サーバー未同期のローカル変更がある場合 true */
+  hasPendingWrites?: boolean;
 }
 
 export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'createdAt' | 'calendarId'>;

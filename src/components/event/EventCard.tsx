@@ -14,7 +14,14 @@ export function EventCard({ event, onPress }: Props) {
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>{event.title}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{event.title}</Text>
+            {event.hasPendingWrites && (
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingText}>同期待ち</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.type}>{EVENT_TYPE_LABELS[event.type]}</Text>
         </View>
         <Text style={styles.time}>
@@ -50,10 +57,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
   title: {
     fontSize: 15,
     fontWeight: '600',
     color: '#2c3e50',
+  },
+  pendingBadge: {
+    backgroundColor: '#f39c12',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  pendingText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
   },
   type: {
     fontSize: 12,

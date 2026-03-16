@@ -65,7 +65,13 @@ export function subscribeToEventsByMonth(
 
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(
-      (d) => ({ id: d.id, calendarId, ...d.data() }) as CalendarEvent
+      (d) =>
+        ({
+          id: d.id,
+          calendarId,
+          ...d.data(),
+          hasPendingWrites: d.metadata.hasPendingWrites,
+        }) as CalendarEvent
     );
     callback(events);
   });
@@ -84,7 +90,13 @@ export function subscribeToEventsByDate(
 
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(
-      (d) => ({ id: d.id, calendarId, ...d.data() }) as CalendarEvent
+      (d) =>
+        ({
+          id: d.id,
+          calendarId,
+          ...d.data(),
+          hasPendingWrites: d.metadata.hasPendingWrites,
+        }) as CalendarEvent
     );
     callback(events);
   });
