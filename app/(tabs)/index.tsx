@@ -9,8 +9,8 @@ import { AgendaView } from '../../src/components/calendar/AgendaView';
 import { DayDetail } from '../../src/components/calendar/DayDetail';
 import { ViewSwitcher } from '../../src/components/calendar/ViewSwitcher';
 import { QuickInputBar } from '../../src/components/calendar/QuickInputBar';
-import { useCalendars } from '../../src/hooks/useCalendars';
 import { useEvents } from '../../src/hooks/useEvents';
+import { useAuthStore } from '../../src/stores/authStore';
 import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
 import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
@@ -30,7 +30,7 @@ import type { ParsedEvent } from '../../src/utils/naturalLanguageParser';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { selectedCalendarIds } = useCalendars();
+  const uid = useAuthStore((s) => s.uid);
   const {
     selectedDate,
     currentMonth,
@@ -39,7 +39,7 @@ export default function CalendarScreen() {
     setCurrentMonth,
     setViewType,
   } = useUIStore();
-  const { events: firestoreEvents } = useEvents(selectedCalendarIds, currentMonth);
+  const { events: firestoreEvents } = useEvents(uid, currentMonth);
   const { timetables } = useTimetables();
   const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth);
 

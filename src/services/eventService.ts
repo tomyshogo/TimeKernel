@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   doc,
   addDoc,
   updateDoc,
@@ -10,9 +11,12 @@ import {
   serverTimestamp,
   Unsubscribe,
   orderBy,
+  getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CalendarEvent, CalendarEventInput } from '../types';
+import { getCalendar } from './calendarService';
 
 function eventsCol(calendarId: string) {
   return collection(db, 'calendars', calendarId, 'events');
@@ -22,8 +26,12 @@ export async function addEvent(
   calendarId: string,
   event: CalendarEventInput
 ): Promise<string> {
+  const cal = await getCalendar(calendarId);
+  const members = cal?.members ?? [];
+
   const docRef = await addDoc(eventsCol(calendarId), {
     ...event,
+    members,
     createdAt: serverTimestamp(),
   });
   return docRef.id;
@@ -44,8 +52,12 @@ export async function deleteEvent(
   await deleteDoc(doc(db, 'calendars', calendarId, 'events', eventId));
 }
 
+/**
+ * CollectionGroup クエリで全カレンダーのイベントを1本の onSnapshot で取得。
+ * members 配列に uid が含まれるイベントだけを返す（セキュリティルールと一致）。
+ */
 export function subscribeToEventsByMonth(
-  calendarId: string,
+  uid: string,
   yearMonth: string,
   callback: (events: CalendarEvent[]) => void
 ): Unsubscribe {
@@ -56,7 +68,8 @@ export function subscribeToEventsByMonth(
   const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
 
   const q = query(
-    eventsCol(calendarId),
+    collectionGroup(db, 'events'),
+    where('members', 'array-contains', uid),
     where('date', '>=', startDate),
     where('date', '<', endDate),
     orderBy('date'),
@@ -68,7 +81,7 @@ export function subscribeToEventsByMonth(
       (d) =>
         ({
           id: d.id,
-          calendarId,
+          calendarId: d.ref.parent.parent?.id ?? '',
           ...d.data(),
           hasPendingWrites: d.metadata.hasPendingWrites,
         }) as CalendarEvent
@@ -78,12 +91,13 @@ export function subscribeToEventsByMonth(
 }
 
 export function subscribeToEventsByDate(
-  calendarId: string,
+  uid: string,
   date: string,
   callback: (events: CalendarEvent[]) => void
 ): Unsubscribe {
   const q = query(
-    eventsCol(calendarId),
+    collectionGroup(db, 'events'),
+    where('members', 'array-contains', uid),
     where('date', '==', date),
     orderBy('startTime')
   );
@@ -93,11 +107,29 @@ export function subscribeToEventsByDate(
       (d) =>
         ({
           id: d.id,
-          calendarId,
+          calendarId: d.ref.parent.parent?.id ?? '',
           ...d.data(),
           hasPendingWrites: d.metadata.hasPendingWrites,
         }) as CalendarEvent
     );
     callback(events);
   });
+}
+
+/**
+ * カレンダーのメンバー変更時に、そのカレンダー配下の全イベントの members を一括更新。
+ * バッチ書き込みで Firestore の write 回数を最小化。
+ */
+export async function syncEventMembers(
+  calendarId: string,
+  newMembers: string[]
+): Promise<void> {
+  const snapshot = await getDocs(eventsCol(calendarId));
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(db);
+  for (const eventDoc of snapshot.docs) {
+    batch.update(eventDoc.ref, { members: newMembers });
+  }
+  await batch.commit();
 }

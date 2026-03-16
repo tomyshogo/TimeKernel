@@ -46,6 +46,7 @@ export function generateTimetableEvents(
         createdBy: uid,
         createdAt: Timestamp.now(),
         calendarId,
+        members: [uid],
       });
     }
   }

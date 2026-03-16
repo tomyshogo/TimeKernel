@@ -26,10 +26,12 @@ export interface CalendarEvent {
   createdBy: string;
   createdAt: Timestamp;
   calendarId: string;
+  /** カレンダーの members を非正規化（CollectionGroup クエリ + ルール最適化用） */
+  members: string[];
   /** 繰り返しルール */
   recurrence?: RecurrenceRule;
   /** サーバー未同期のローカル変更がある場合 true */
   hasPendingWrites?: boolean;
 }
 
-export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'createdAt' | 'calendarId'>;
+export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'createdAt' | 'calendarId' | 'members'>;

@@ -20,7 +20,7 @@ export default function NewEventScreen() {
     const notifSettings = settings.notifications;
     if (notifSettings?.enabled) {
       await scheduleEventReminder(
-        { ...event, id: eventId, calendarId, createdAt: null as any },
+        { ...event, id: eventId, calendarId, members: [], createdAt: null as any },
         notifSettings.reminderMinutes,
         notifSettings
       );

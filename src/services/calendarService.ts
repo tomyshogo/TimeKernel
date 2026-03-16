@@ -14,6 +14,7 @@ import {
 import { db } from './firebase';
 import { Calendar } from '../types';
 import { addCalendarToUser, removeCalendarFromUser } from './userService';
+import { syncEventMembers } from './eventService';
 
 const calendarsCol = collection(db, 'calendars');
 
@@ -42,15 +43,28 @@ export async function joinCalendar(calendarId: string, uid: string): Promise<boo
   const snap = await getDoc(calRef);
   if (!snap.exists()) return false;
 
+  const currentMembers: string[] = snap.data().members ?? [];
+  const newMembers = [...currentMembers, uid];
+
   await updateDoc(calRef, { members: arrayUnion(uid) });
   await addCalendarToUser(uid, calendarId);
+
+  // イベントの members を同期
+  await syncEventMembers(calendarId, newMembers);
   return true;
 }
 
 export async function leaveCalendar(calendarId: string, uid: string): Promise<void> {
   const calRef = doc(db, 'calendars', calendarId);
+  const snap = await getDoc(calRef);
+  const currentMembers: string[] = snap.exists() ? (snap.data().members ?? []) : [];
+  const newMembers = currentMembers.filter((m) => m !== uid);
+
   await updateDoc(calRef, { members: arrayRemove(uid) });
   await removeCalendarFromUser(uid, calendarId);
+
+  // イベントの members を同期
+  await syncEventMembers(calendarId, newMembers);
 }
 
 export async function removeMember(
@@ -61,10 +75,15 @@ export async function removeMember(
   const cal = await getCalendar(calendarId);
   if (!cal || cal.createdBy !== requestingUid) return false;
 
+  const newMembers = cal.members.filter((m) => m !== memberUid);
+
   await updateDoc(doc(db, 'calendars', calendarId), {
     members: arrayRemove(memberUid),
   });
   await removeCalendarFromUser(memberUid, calendarId);
+
+  // イベントの members を同期
+  await syncEventMembers(calendarId, newMembers);
   return true;
 }
 

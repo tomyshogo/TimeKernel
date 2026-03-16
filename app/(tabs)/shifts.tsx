@@ -2,7 +2,6 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { ShiftSummaryCard } from '../../src/components/shift/ShiftSummaryCard';
 import { ShiftList } from '../../src/components/shift/ShiftList';
-import { useCalendars } from '../../src/hooks/useCalendars';
 import { useEvents } from '../../src/hooks/useEvents';
 import { useShiftSummary } from '../../src/hooks/useShiftSummary';
 import { useUIStore } from '../../src/stores/uiStore';
@@ -10,10 +9,10 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { formatDisplayMonth } from '../../src/utils/dateHelpers';
 
 export default function ShiftsScreen() {
-  const { selectedCalendarIds } = useCalendars();
+  const uid = useAuthStore((s) => s.uid);
   const currentMonth = useUIStore((s) => s.currentMonth);
   const nightShift = useAuthStore((s) => s.settings.nightShift);
-  const { events } = useEvents(selectedCalendarIds, currentMonth);
+  const { events } = useEvents(uid, currentMonth);
 
   const shiftEvents = events.filter((e) => e.type === 'shift');
   const { totalHours, totalPay } = useShiftSummary(events);
