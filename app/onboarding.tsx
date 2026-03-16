@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -40,6 +41,8 @@ export default function OnboardingScreen() {
       });
       setIsNewUser(false);
     } catch {
+      Alert.alert('エラー', '初期設定に失敗しました。もう一度お試しください。');
+    } finally {
       setIsSubmitting(false);
     }
   };

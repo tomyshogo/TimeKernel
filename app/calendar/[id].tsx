@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { MemberList } from '../../src/components/share/MemberList';
@@ -19,14 +19,34 @@ export default function CalendarDetailScreen() {
   const uid = useAuthStore((s) => s.uid);
   const setProfile = useAuthStore((s) => s.setProfile);
   const [calendar, setCalendar] = useState<Calendar | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
-      getCalendar(id).then(setCalendar);
+      getCalendar(id)
+        .then(setCalendar)
+        .catch(() => Alert.alert('エラー', 'カレンダーの読み込みに失敗しました'))
+        .finally(() => setIsLoading(false));
     }
   }, [id]);
 
-  if (!calendar || !uid) return null;
+  if (!uid) return null;
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#3498db" />
+      </View>
+    );
+  }
+
+  if (!calendar) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>カレンダーが見つかりません</Text>
+      </View>
+    );
+  }
 
   const isCreator = calendar.createdBy === uid;
 
@@ -132,5 +152,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: 24,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#95a5a6',
   },
 });

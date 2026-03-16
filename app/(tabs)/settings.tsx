@@ -32,9 +32,13 @@ export default function SettingsScreen() {
 
   const handleSaveName = async () => {
     if (!uid || !name.trim()) return;
-    await updateUserName(uid, name.trim());
-    setProfile({ ...profile!, name: name.trim() });
-    Alert.alert('保存しました');
+    try {
+      await updateUserName(uid, name.trim());
+      setProfile({ ...profile!, name: name.trim() });
+      Alert.alert('保存しました');
+    } catch {
+      Alert.alert('エラー', '名前の保存に失敗しました');
+    }
   };
 
   const handleSendEmailLink = async () => {
@@ -49,18 +53,26 @@ export default function SettingsScreen() {
 
   const handleSavePeriods = async () => {
     if (!uid) return;
-    const newSettings = { ...settings, periods };
-    await updateUserSettings(uid, { periods });
-    setSettings(newSettings);
-    Alert.alert('時限設定を保存しました');
+    try {
+      const newSettings = { ...settings, periods };
+      await updateUserSettings(uid, { periods });
+      setSettings(newSettings);
+      Alert.alert('時限設定を保存しました');
+    } catch {
+      Alert.alert('エラー', '時限設定の保存に失敗しました');
+    }
   };
 
   const handleSaveNightShift = async () => {
     if (!uid) return;
-    const newSettings = { ...settings, nightShift };
-    await updateUserSettings(uid, { nightShift });
-    setSettings(newSettings);
-    Alert.alert('深夜割増設定を保存しました');
+    try {
+      const newSettings = { ...settings, nightShift };
+      await updateUserSettings(uid, { nightShift });
+      setSettings(newSettings);
+      Alert.alert('深夜割増設定を保存しました');
+    } catch {
+      Alert.alert('エラー', '深夜割増設定の保存に失敗しました');
+    }
   };
 
   return (
