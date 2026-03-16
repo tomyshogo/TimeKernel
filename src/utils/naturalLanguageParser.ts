@@ -82,7 +82,7 @@ function resolveRelativeDate(text: string, now: Date): { date: Date; consumed: s
 
 function parseTime(text: string): { startTime: string; endTime: string | null; consumed: string } | null {
   // N時間 duration
-  const durationMatch = text.match(/(\d{1,2})[時:](\d{2})?[から〜\-]?\s*(\d+)時間/);
+  const durationMatch = text.match(/(\d{1,2})[時:](\d{2})?分?(?:から|〜|\-|\s)\s*(\d+)時間/);
   if (durationMatch) {
     const h = parseInt(durationMatch[1], 10);
     const m = durationMatch[2] ? parseInt(durationMatch[2], 10) : 0;
