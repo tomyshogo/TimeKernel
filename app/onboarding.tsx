@@ -8,13 +8,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useAuthStore } from '../src/stores/authStore';
-import { updateUserName, updateUserEmail } from '../src/services/userService';
+import { getOrCreateUser, updateUserEmail } from '../src/services/userService';
 import { createCalendar } from '../src/services/calendarService';
 
 export default function OnboardingScreen() {
-  const { uid, setIsNewUser, setProfile, profile } = useAuthStore();
+  const { uid, setIsNewUser, setProfile } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +25,7 @@ export default function OnboardingScreen() {
     setIsSubmitting(true);
 
     try {
-      await updateUserName(uid, name.trim());
+      const { profile: userProfile } = await getOrCreateUser(uid, name.trim());
 
       if (email.trim()) {
         await updateUserEmail(uid, email.trim());
@@ -33,13 +34,18 @@ export default function OnboardingScreen() {
       const calendarId = await createCalendar('マイカレンダー', uid);
 
       setProfile({
-        ...profile!,
+        ...userProfile,
         name: name.trim(),
         email: email.trim() || undefined,
         calendars: [calendarId],
       });
       setIsNewUser(false);
-    } catch {
+    } catch (error) {
+      console.error('Onboarding error:', error);
+      Alert.alert(
+        'エラー',
+        '初期設定に失敗しました。ネットワーク接続を確認してもう一度お試しください。'
+      );
       setIsSubmitting(false);
     }
   };

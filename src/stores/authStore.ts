@@ -6,11 +6,13 @@ import { DEFAULT_NIGHT_SHIFT, DEFAULT_NOTIFICATION_SETTINGS } from '../types/use
 interface AuthState {
   uid: string | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   isNewUser: boolean;
   profile: UserProfile | null;
   settings: UserSettings;
   setUid: (uid: string | null) => void;
   setLoading: (loading: boolean) => void;
+  setAuthenticated: (isAuthenticated: boolean) => void;
   setIsNewUser: (isNew: boolean) => void;
   setProfile: (profile: UserProfile | null) => void;
   setSettings: (settings: UserSettings) => void;
@@ -19,6 +21,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   uid: null,
   isLoading: true,
+  isAuthenticated: false,
   isNewUser: false,
   profile: null,
   settings: {
@@ -28,6 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   setUid: (uid) => set({ uid }),
   setLoading: (isLoading) => set({ isLoading }),
+  setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
   setIsNewUser: (isNewUser) => set({ isNewUser }),
   setProfile: (profile) => set({ profile }),
   setSettings: (settings) => set({ settings }),

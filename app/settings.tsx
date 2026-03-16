@@ -9,13 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button } from '../../src/components/ui/Button';
-import { PeriodEditor } from '../../src/components/timetable/PeriodEditor';
-import { Card } from '../../src/components/ui/Card';
-import { useAuthStore } from '../../src/stores/authStore';
-import { updateUserName, updateUserSettings } from '../../src/services/userService';
-import { sendEmailLink } from '../../src/services/auth';
-import { Period, NightShiftSettings } from '../../src/types';
+import { Button } from '../src/components/ui/Button';
+import { PeriodEditor } from '../src/components/timetable/PeriodEditor';
+import { Card } from '../src/components/ui/Card';
+import { useAuthStore } from '../src/stores/authStore';
+import { updateUserName, updateUserSettings } from '../src/services/userService';
+import { sendEmailLink } from '../src/services/auth';
+import { Period, NightShiftSettings } from '../src/types';
 
 export default function SettingsScreen() {
   const router = useRouter();

@@ -1,11 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// @ts-expect-error -- Metro resolves firebase/auth to the RN entry which exports getReactNativePersistence
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import {
   initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  enablePersistentCacheIndexAutoCreation,
-  getPersistentCacheIndexManager,
+  memoryLocalCache,
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -19,17 +18,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-
-// Firestoreオフラインパーシステンス有効化
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
 
-// オフライン時のクエリパフォーマンス向上のため自動インデックス作成を有効化
-const indexManager = getPersistentCacheIndexManager(db);
-if (indexManager) {
-  enablePersistentCacheIndexAutoCreation(indexManager);
-}
+// React NativeではIndexedDBが使えないのでメモリキャッシュを使用
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache(),
+});

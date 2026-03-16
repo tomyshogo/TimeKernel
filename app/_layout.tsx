@@ -5,10 +5,11 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
 import { useNotifications } from '../src/hooks/useNotifications';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
+import AuthScreen from './auth';
 import OnboardingScreen from './onboarding';
 
 export default function RootLayout() {
-  const { isLoading, isNewUser } = useAuth();
+  const { isLoading, isAuthenticated, isNewUser } = useAuth();
   useNotifications();
 
   if (isLoading) {
@@ -17,6 +18,10 @@ export default function RootLayout() {
         <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
   }
 
   if (isNewUser) {
@@ -34,6 +39,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: '設定' }} />
         <Stack.Screen
           name="event/new"
           options={{ title: '予定を追加', presentation: 'modal' }}
@@ -50,14 +56,6 @@ export default function RootLayout() {
           options={{ title: 'カレンダーに参加' }}
         />
         <Stack.Screen name="share/[calendarId]" options={{ title: '共有' }} />
-        <Stack.Screen
-          name="timetable/[id]"
-          options={{ title: '時間割編集' }}
-        />
-        <Stack.Screen
-          name="timetable/slot-edit"
-          options={{ title: '科目編集', presentation: 'modal' }}
-        />
         <Stack.Screen
           name="notification-settings"
           options={{ title: '通知設定' }}

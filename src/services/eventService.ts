@@ -11,12 +11,12 @@ import {
   serverTimestamp,
   Unsubscribe,
   orderBy,
+  getDoc,
   getDocs,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CalendarEvent, CalendarEventInput } from '../types';
-import { getCalendar } from './calendarService';
 
 function eventsCol(calendarId: string) {
   return collection(db, 'calendars', calendarId, 'events');
@@ -26,8 +26,8 @@ export async function addEvent(
   calendarId: string,
   event: CalendarEventInput
 ): Promise<string> {
-  const cal = await getCalendar(calendarId);
-  const members = cal?.members ?? [];
+  const calSnap = await getDoc(doc(db, 'calendars', calendarId));
+  const members: string[] = calSnap.exists() ? (calSnap.data().members ?? []) : [];
 
   const docRef = await addDoc(eventsCol(calendarId), {
     ...event,

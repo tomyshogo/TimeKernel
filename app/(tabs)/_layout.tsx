@@ -1,6 +1,20 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+function SettingsButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/settings')}
+      style={{ marginRight: 16 }}
+      hitSlop={8}
+    >
+      <Ionicons name="settings-outline" size={22} color="#2c3e50" />
+    </TouchableOpacity>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -10,53 +24,64 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#95a5a6',
         tabBarStyle: {
           backgroundColor: '#fff',
-          borderTopColor: '#e0e0e0',
+          borderTopColor: '#eee',
+          height: 88,
+          paddingBottom: 28,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
         headerStyle: { backgroundColor: '#fff' },
         headerTintColor: '#2c3e50',
         headerTitleStyle: { fontWeight: '700' },
+        headerRight: () => <SettingsButton />,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'カレンダー',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'📅'}</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="timetable"
         options={{
           title: '時間割',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'📚'}</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="tasks"
         options={{
           title: '課題',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'✅'}</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="checkbox-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="pomodoro"
         options={{
           title: 'タイマー',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'🍅'}</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="timer-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="shifts"
         options={{
           title: 'バイト',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'💰'}</Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: '設定',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>{'⚙️'}</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
