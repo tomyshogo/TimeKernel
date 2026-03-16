@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MonthView } from '../../src/components/calendar/MonthView';
@@ -8,11 +8,14 @@ import { ThreeDayView } from '../../src/components/calendar/ThreeDayView';
 import { AgendaView } from '../../src/components/calendar/AgendaView';
 import { DayDetail } from '../../src/components/calendar/DayDetail';
 import { ViewSwitcher } from '../../src/components/calendar/ViewSwitcher';
+import { QuickInputBar } from '../../src/components/calendar/QuickInputBar';
 import { useCalendars } from '../../src/hooks/useCalendars';
 import { useEvents } from '../../src/hooks/useEvents';
 import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
+import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
 import { useUIStore } from '../../src/stores/uiStore';
+import { updateEvent, addEvent } from '../../src/services/eventService';
 import {
   addMonths,
   subMonths,
@@ -23,6 +26,7 @@ import {
   parseDate,
 } from '../../src/utils/dateHelpers';
 import { CalendarEvent } from '../../src/types';
+import type { ParsedEvent } from '../../src/utils/naturalLanguageParser';
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -44,6 +48,41 @@ export default function CalendarScreen() {
     router.push(`/event/${event.id}?calendarId=${event.calendarId}`);
   };
 
+  const { dragState, handleLongPress, updateDrag, endDrag } = useDragAndDrop({
+    onMove: async (eventId, calendarId, newDate, newStartTime, newEndTime) => {
+      await updateEvent(calendarId, eventId, {
+        date: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime,
+      });
+    },
+    onCopy: async (event, newDate, newStartTime, newEndTime) => {
+      await addEvent(event.calendarId, {
+        title: event.title,
+        type: event.type,
+        date: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime,
+        color: event.color,
+        createdBy: event.createdBy,
+      });
+    },
+  });
+
+  const handleQuickInput = useCallback(
+    (parsed: ParsedEvent) => {
+      const params = new URLSearchParams({
+        date: parsed.date,
+        title: parsed.title,
+        type: parsed.type,
+      });
+      if (parsed.startTime) params.set('startTime', parsed.startTime);
+      if (parsed.endTime) params.set('endTime', parsed.endTime);
+      router.push(`/event/new?${params.toString()}`);
+    },
+    [router]
+  );
+
   const renderView = () => {
     switch (viewType) {
       case 'week':
@@ -60,6 +99,10 @@ export default function CalendarScreen() {
               const next = addWeeks(parseDate(selectedDate), 1);
               setSelectedDate(formatDate(next));
             }}
+            enableDrag
+            onDragStart={handleLongPress}
+            onDragUpdate={(x, y) => updateDrag(x, y, null, null)}
+            onDragEnd={endDrag}
           />
         );
       case 'day':
@@ -129,6 +172,7 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      <QuickInputBar onParsed={handleQuickInput} />
       <ViewSwitcher current={viewType} onChange={setViewType} />
       <View style={styles.content}>{renderView()}</View>
       <TouchableOpacity

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CalendarEvent } from '../../types';
+import { DraggableEventBlock } from './DraggableEventBlock';
 
 const HOUR_HEIGHT = 60;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -11,6 +12,10 @@ interface Props {
   columnWidth: number;
   showTimeLabels: boolean;
   onEventPress: (event: CalendarEvent) => void;
+  onDragStart?: (event: CalendarEvent) => void;
+  onDragUpdate?: (x: number, y: number) => void;
+  onDragEnd?: () => void;
+  enableDrag?: boolean;
 }
 
 function timeToMinutes(time: string): number {
@@ -24,6 +29,10 @@ export function TimelineColumn({
   columnWidth,
   showTimeLabels,
   onEventPress,
+  onDragStart,
+  onDragUpdate,
+  onDragEnd,
+  enableDrag = false,
 }: Props) {
   const TIME_LABEL_WIDTH = showTimeLabels ? 44 : 0;
 
@@ -48,6 +57,23 @@ export function TimelineColumn({
         const duration = Math.max(endMin - startMin, 15);
         const top = (startMin / 60) * HOUR_HEIGHT;
         const height = (duration / 60) * HOUR_HEIGHT;
+
+        if (enableDrag && onDragStart && onDragUpdate && onDragEnd && !event.id.startsWith('timetable_')) {
+          return (
+            <DraggableEventBlock
+              key={event.id}
+              event={event}
+              top={top}
+              height={Math.max(height, 20)}
+              left={TIME_LABEL_WIDTH + 2}
+              right={2}
+              onPress={onEventPress}
+              onDragStart={onDragStart}
+              onDragUpdate={onDragUpdate}
+              onDragEnd={onDragEnd}
+            />
+          );
+        }
 
         return (
           <TouchableOpacity

@@ -22,6 +22,10 @@ interface Props {
   onEventPress: (event: CalendarEvent) => void;
   onPrev: () => void;
   onNext: () => void;
+  onDragStart?: (event: CalendarEvent) => void;
+  onDragUpdate?: (x: number, y: number) => void;
+  onDragEnd?: () => void;
+  enableDrag?: boolean;
 }
 
 const TIME_LABEL_WIDTH = 44;
@@ -32,6 +36,10 @@ export function WeekView({
   onEventPress,
   onPrev,
   onNext,
+  onDragStart,
+  onDragUpdate,
+  onDragEnd,
+  enableDrag = false,
 }: Props) {
   const days = getWeekDays(currentDate);
   const screenWidth = Dimensions.get('window').width;
@@ -90,6 +98,10 @@ export function WeekView({
                 columnWidth={i === 0 ? dayWidth + TIME_LABEL_WIDTH : dayWidth}
                 showTimeLabels={i === 0}
                 onEventPress={onEventPress}
+                onDragStart={onDragStart}
+                onDragUpdate={onDragUpdate}
+                onDragEnd={onDragEnd}
+                enableDrag={enableDrag}
               />
             );
           })}
