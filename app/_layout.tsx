@@ -62,6 +62,22 @@ export default function RootLayout() {
           name="notification-settings"
           options={{ title: '通知設定' }}
         />
+        <Stack.Screen
+          name="external-calendars/index"
+          options={{ title: '外部カレンダー連携' }}
+        />
+        <Stack.Screen
+          name="external-calendars/add-google"
+          options={{ title: 'Google Calendar 連携' }}
+        />
+        <Stack.Screen
+          name="external-calendars/add-apple"
+          options={{ title: 'Apple Calendar 連携' }}
+        />
+        <Stack.Screen
+          name="external-calendars/add-ical"
+          options={{ title: 'iCal URL 購読' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );

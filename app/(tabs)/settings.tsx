@@ -162,6 +162,15 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>外部カレンダー連携</Text>
+        <Button
+          title="外部カレンダー管理"
+          variant="secondary"
+          onPress={() => router.push('/external-calendars')}
+        />
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>カレンダー管理</Text>
         <Button
           title="カレンダー一覧"

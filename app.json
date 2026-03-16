@@ -37,7 +37,14 @@
         {
           "sounds": []
         }
-      ]
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "TimeKernelがカレンダーにアクセスして予定を同期します"
+        }
+      ],
+      "expo-background-fetch"
     ]
   }
 }
