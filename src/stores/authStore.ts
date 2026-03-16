@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { UserProfile, UserSettings } from '../types';
 import { DEFAULT_PERIODS } from '../types/timetable';
-import { DEFAULT_NIGHT_SHIFT } from '../types/user';
+import { DEFAULT_NIGHT_SHIFT, DEFAULT_NOTIFICATION_SETTINGS } from '../types/user';
 
 interface AuthState {
   uid: string | null;
@@ -24,6 +24,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   settings: {
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   },
   setUid: (uid) => set({ uid }),
   setLoading: (isLoading) => set({ isLoading }),

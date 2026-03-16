@@ -4,16 +4,27 @@ import { EventForm } from '../../src/components/event/EventForm';
 import { useCalendars } from '../../src/hooks/useCalendars';
 import { useAuthStore } from '../../src/stores/authStore';
 import { addEvent } from '../../src/services/eventService';
+import { scheduleEventReminder } from '../../src/services/notificationService';
 import { CalendarEventInput } from '../../src/types';
 
 export default function NewEventScreen() {
   const router = useRouter();
   const { date } = useLocalSearchParams<{ date?: string }>();
   const uid = useAuthStore((s) => s.uid);
+  const settings = useAuthStore((s) => s.settings);
   const { calendars, selectedCalendarIds } = useCalendars();
 
   const handleSubmit = async (calendarId: string, event: CalendarEventInput) => {
-    await addEvent(calendarId, event);
+    const eventId = await addEvent(calendarId, event);
+    // 通知スケジュール
+    const notifSettings = settings.notifications;
+    if (notifSettings?.enabled) {
+      await scheduleEventReminder(
+        { ...event, id: eventId, calendarId, createdAt: null as any },
+        notifSettings.reminderMinutes,
+        notifSettings
+      );
+    }
     router.back();
   };
 

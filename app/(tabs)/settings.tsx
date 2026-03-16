@@ -153,6 +153,15 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>通知設定</Text>
+        <Button
+          title="通知・リマインダー設定"
+          variant="secondary"
+          onPress={() => router.push('/notification-settings')}
+        />
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>カレンダー管理</Text>
         <Button
           title="カレンダー一覧"

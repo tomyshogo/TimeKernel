@@ -8,6 +8,10 @@ import {
   updateEvent,
   deleteEvent,
 } from '../../src/services/eventService';
+import {
+  scheduleEventReminder,
+  cancelEventNotifications,
+} from '../../src/services/notificationService';
 import { CalendarEvent, CalendarEventInput } from '../../src/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../src/services/firebase';
@@ -19,6 +23,7 @@ export default function EditEventScreen() {
     calendarId: string;
   }>();
   const uid = useAuthStore((s) => s.uid);
+  const settings = useAuthStore((s) => s.settings);
   const { calendars } = useCalendars();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,11 +60,22 @@ export default function EditEventScreen() {
 
   const handleSubmit = async (_calId: string, data: CalendarEventInput) => {
     await updateEvent(calendarId!, id!, data);
+    // 通知を再スケジュール
+    await cancelEventNotifications(id!);
+    const notifSettings = settings.notifications;
+    if (notifSettings?.enabled) {
+      await scheduleEventReminder(
+        { ...data, id: id!, calendarId: calendarId!, createdAt: null as any },
+        notifSettings.reminderMinutes,
+        notifSettings
+      );
+    }
     router.back();
   };
 
   const handleDelete = async () => {
     if (event.createdBy !== uid) return;
+    await cancelEventNotifications(id!);
     await deleteEvent(calendarId!, id!);
     router.back();
   };

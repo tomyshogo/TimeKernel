@@ -3,11 +3,13 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
+import { useNotifications } from '../src/hooks/useNotifications';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
 import OnboardingScreen from './onboarding';
 
 export default function RootLayout() {
   const { isLoading, isNewUser } = useAuth();
+  useNotifications();
 
   if (isLoading) {
     return (
@@ -55,6 +57,10 @@ export default function RootLayout() {
         <Stack.Screen
           name="timetable/slot-edit"
           options={{ title: '科目編集', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="notification-settings"
+          options={{ title: '通知設定' }}
         />
       </Stack>
     </GestureHandlerRootView>

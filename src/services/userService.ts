@@ -7,7 +7,7 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { UserProfile, UserSettings, DEFAULT_NIGHT_SHIFT } from '../types';
+import { UserProfile, UserSettings, DEFAULT_NIGHT_SHIFT, DEFAULT_NOTIFICATION_SETTINGS } from '../types';
 import { DEFAULT_PERIODS } from '../types/timetable';
 
 const usersRef = (uid: string) => doc(db, 'users', uid);
@@ -31,6 +31,7 @@ export async function getOrCreateUser(
   const settings: UserSettings = {
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   };
   await setDoc(settingsRef(uid), settings);
 
@@ -53,6 +54,7 @@ export async function getUserSettings(uid: string): Promise<UserSettings> {
   return {
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   };
 }
 
