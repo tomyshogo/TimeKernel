@@ -90,6 +90,14 @@ export default function RootLayout() {
           name="study-stats"
           options={{ title: '勉強統計' }}
         />
+        <Stack.Screen
+          name="poll/new"
+          options={{ title: '投票を作成', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="poll/[id]"
+          options={{ title: '投票', presentation: 'modal' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );

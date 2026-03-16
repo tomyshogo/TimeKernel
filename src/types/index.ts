@@ -5,3 +5,4 @@ export * from './user';
 export * from './externalCalendar';
 export * from './task';
 export * from './pomodoro';
+export * from './poll';
