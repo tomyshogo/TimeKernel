@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useAuthStore } from '../src/stores/authStore';
 import { getOrCreateUser, updateUserEmail } from '../src/services/userService';
@@ -42,10 +42,8 @@ export default function OnboardingScreen() {
       setIsNewUser(false);
     } catch (error) {
       console.error('Onboarding error:', error);
-      Alert.alert(
-        'エラー',
-        '初期設定に失敗しました。ネットワーク接続を確認してもう一度お試しください。'
-      );
+      Alert.alert('エラー', '初期設定に失敗しました。もう一度お試しください。');
+    } finally {
       setIsSubmitting(false);
     }
   };

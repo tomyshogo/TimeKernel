@@ -39,12 +39,16 @@ export default function CalendarGroupsScreen() {
 
   const handleAddGroup = async () => {
     if (!uid || !newGroupName.trim()) return;
-    await createGroup(uid, {
-      name: newGroupName.trim(),
-      order: groups.length,
-      calendarIds: [],
-    });
-    setNewGroupName('');
+    try {
+      await createGroup(uid, {
+        name: newGroupName.trim(),
+        order: groups.length,
+        calendarIds: [],
+      });
+      setNewGroupName('');
+    } catch {
+      Alert.alert('エラー', 'フォルダの作成に失敗しました');
+    }
   };
 
   const handleDeleteGroup = (groupId: string) => {
@@ -55,10 +59,22 @@ export default function CalendarGroupsScreen() {
     ]);
   };
 
-  const handleArchive = async (calendarId: string) => {
+  const handleArchive = (calendarId: string) => {
     if (!uid) return;
-    await archiveCalendar(uid, calendarId);
-    setSettings(await getAllCalendarSettings(uid));
+    Alert.alert('確認', 'このカレンダーをアーカイブしますか？', [
+      { text: 'キャンセル' },
+      {
+        text: 'アーカイブ',
+        onPress: async () => {
+          try {
+            await archiveCalendar(uid, calendarId);
+            setSettings(await getAllCalendarSettings(uid));
+          } catch {
+            Alert.alert('エラー', 'アーカイブに失敗しました');
+          }
+        },
+      },
+    ]);
   };
 
   const handleUnarchive = async (calendarId: string) => {

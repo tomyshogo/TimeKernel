@@ -115,10 +115,19 @@ export default function TimetableScreen() {
             <Button
               title="この科目を削除"
               variant="danger"
-              onPress={async () => {
-                if (!uid) return;
-                await updateSlot(uid, editingSlot.timetableId, editingSlot.key, null);
-                setEditingSlot(null);
+              onPress={() => {
+                Alert.alert('確認', 'この科目を削除しますか？', [
+                  { text: 'キャンセル' },
+                  {
+                    text: '削除',
+                    style: 'destructive',
+                    onPress: async () => {
+                      if (!uid) return;
+                      await updateSlot(uid, editingSlot.timetableId, editingSlot.key, null);
+                      setEditingSlot(null);
+                    },
+                  },
+                ]);
               }}
               style={{ marginTop: 8 }}
             />

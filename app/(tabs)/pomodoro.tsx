@@ -108,15 +108,19 @@ export default function PomodoroScreen() {
     if (phase === 'work') {
       // 勉強記録を保存
       if (uid && selectedSubject && startTimeRef.current) {
-        await addStudyRecord(uid, {
-          subject: selectedSubject,
-          slotKey: selectedSlotKey,
-          timetableId: selectedTimetableId,
-          durationMinutes: settings.workMinutes,
-          date: new Date().toISOString().split('T')[0],
-          startedAt: Timestamp.fromDate(startTimeRef.current),
-          completedAt: Timestamp.now(),
-        });
+        try {
+          await addStudyRecord(uid, {
+            subject: selectedSubject,
+            slotKey: selectedSlotKey,
+            timetableId: selectedTimetableId,
+            durationMinutes: settings.workMinutes,
+            date: new Date().toISOString().split('T')[0],
+            startedAt: Timestamp.fromDate(startTimeRef.current),
+            completedAt: Timestamp.now(),
+          });
+        } catch {
+          Alert.alert('エラー', '勉強記録の保存に失敗しました');
+        }
       }
 
       // 次のフェーズへ

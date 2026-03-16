@@ -18,7 +18,7 @@ interface Props {
   initialValues?: Partial<CalendarEventInput>;
   calendars: Calendar[];
   selectedCalendarId: string;
-  onSubmit: (calendarId: string, event: CalendarEventInput) => void;
+  onSubmit: (calendarId: string, event: CalendarEventInput) => void | Promise<void>;
   onDelete?: () => void;
   isEdit?: boolean;
   uid: string;
@@ -71,7 +71,9 @@ export function EventForm({
           : {}),
         ...(recurrence ? { recurrence } : {}),
       };
-      onSubmit(calendarId, event);
+      await onSubmit(calendarId, event);
+    } catch {
+      Alert.alert('エラー', '保存に失敗しました。もう一度お試しください。');
     } finally {
       setLoading(false);
     }

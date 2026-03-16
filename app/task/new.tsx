@@ -62,20 +62,24 @@ export default function NewTaskScreen() {
       new Date(`${deadlineDate}T${deadlineTime}:00`)
     );
 
-    await addTask(uid, {
-      title: title.trim(),
-      type,
-      description: description.trim(),
-      deadline,
-      status: 'todo',
-      reminderMinutes: DEFAULT_REMINDER_MINUTES,
-      subject,
-      slotKey: selectedSlotKey,
-      timetableId: selectedTimetableId,
-    });
+    try {
+      await addTask(uid, {
+        title: title.trim(),
+        type,
+        description: description.trim(),
+        deadline,
+        status: 'todo',
+        reminderMinutes: DEFAULT_REMINDER_MINUTES,
+        subject,
+        slotKey: selectedSlotKey,
+        timetableId: selectedTimetableId,
+      });
 
-    Alert.alert('追加しました');
-    router.back();
+      Alert.alert('追加しました');
+      router.back();
+    } catch {
+      Alert.alert('エラー', '課題の追加に失敗しました。もう一度お試しください。');
+    }
   };
 
   const taskTypes: TaskType[] = ['assignment', 'exam', 'report'];

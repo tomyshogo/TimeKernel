@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { Period } from '../../types';
 
@@ -35,8 +36,17 @@ export function PeriodEditor({ periods, onUpdate }: Props) {
   };
 
   const removePeriod = (index: number) => {
-    const updated = periods.filter((_, i) => i !== index);
-    onUpdate(updated.map((p, i) => ({ ...p, period: i + 1 })));
+    Alert.alert('確認', `${periods[index].period}限を削除しますか？`, [
+      { text: 'キャンセル' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => {
+          const updated = periods.filter((_, i) => i !== index);
+          onUpdate(updated.map((p, i) => ({ ...p, period: i + 1 })));
+        },
+      },
+    ]);
   };
 
   return (

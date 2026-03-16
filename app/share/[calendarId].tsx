@@ -10,9 +10,11 @@ export default function ShareScreen() {
 
   useEffect(() => {
     if (calendarId) {
-      getCalendar(calendarId).then((cal) => {
-        if (cal) setCalendarName(cal.name);
-      });
+      getCalendar(calendarId)
+        .then((cal) => {
+          if (cal) setCalendarName(cal.name);
+        })
+        .catch(() => setCalendarName('(取得失敗)'));
     }
   }, [calendarId]);
 

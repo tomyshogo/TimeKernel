@@ -24,10 +24,28 @@ export default function NotificationSettingsScreen() {
 
   const handleSave = async () => {
     if (!uid) return;
-    const newSettings = { ...settings, notifications: notif };
-    await updateUserSettings(uid, { notifications: notif });
-    setSettings(newSettings);
-    Alert.alert('保存しました');
+
+    // バリデーション
+    if (notif.reminderMinutes < 0 || notif.reminderMinutes > 1440) {
+      Alert.alert('入力エラー', 'リマインダーは0〜1440分の範囲で設定してください');
+      return;
+    }
+    if (notif.quietHours.enabled) {
+      const timePattern = /^\d{1,2}:\d{2}$/;
+      if (!timePattern.test(notif.quietHours.start) || !timePattern.test(notif.quietHours.end)) {
+        Alert.alert('入力エラー', 'おやすみ時間はHH:MM形式で入力してください');
+        return;
+      }
+    }
+
+    try {
+      const newSettings = { ...settings, notifications: notif };
+      await updateUserSettings(uid, { notifications: notif });
+      setSettings(newSettings);
+      Alert.alert('保存しました');
+    } catch {
+      Alert.alert('エラー', '通知設定の保存に失敗しました');
+    }
   };
 
   return (

@@ -40,22 +40,24 @@ export default function EditTaskScreen() {
 
   useEffect(() => {
     if (!uid || !id) return;
-    getAllTasks(uid).then((tasks) => {
-      const found = tasks.find((t) => t.id === id);
-      if (found) {
-        setTask(found);
-        setTitle(found.title);
-        setType(found.type);
-        setDescription(found.description);
-        setStatus(found.status);
-        const d = found.deadline?.toDate?.() || new Date(found.deadline as any);
-        setDeadlineDate(d.toISOString().split('T')[0]);
-        setDeadlineTime(
-          `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-        );
-      }
-      setLoading(false);
-    });
+    getAllTasks(uid)
+      .then((tasks) => {
+        const found = tasks.find((t) => t.id === id);
+        if (found) {
+          setTask(found);
+          setTitle(found.title);
+          setType(found.type);
+          setDescription(found.description);
+          setStatus(found.status);
+          const d = found.deadline?.toDate?.() || new Date(found.deadline as any);
+          setDeadlineDate(d.toISOString().split('T')[0]);
+          setDeadlineTime(
+            `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          );
+        }
+      })
+      .catch(() => Alert.alert('エラー', '課題の読み込みに失敗しました'))
+      .finally(() => setLoading(false));
   }, [uid, id]);
 
   const handleSave = async () => {
@@ -63,15 +65,19 @@ export default function EditTaskScreen() {
     const deadline = Timestamp.fromDate(
       new Date(`${deadlineDate}T${deadlineTime}:00`)
     );
-    await updateTask(uid, id, {
-      title: title.trim(),
-      type,
-      description: description.trim(),
-      deadline,
-      status,
-    });
-    Alert.alert('保存しました');
-    router.back();
+    try {
+      await updateTask(uid, id, {
+        title: title.trim(),
+        type,
+        description: description.trim(),
+        deadline,
+        status,
+      });
+      Alert.alert('保存しました');
+      router.back();
+    } catch {
+      Alert.alert('エラー', '課題の保存に失敗しました');
+    }
   };
 
   const handleDelete = async () => {
