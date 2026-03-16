@@ -102,6 +102,14 @@ export default function RootLayout() {
           name="voice-assistant"
           options={{ title: '音声アシスタント' }}
         />
+        <Stack.Screen
+          name="calendar-groups"
+          options={{ title: 'カレンダー管理' }}
+        />
+        <Stack.Screen
+          name="privacy-settings"
+          options={{ title: 'プライバシー' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
