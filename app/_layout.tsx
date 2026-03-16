@@ -98,6 +98,10 @@ export default function RootLayout() {
           name="poll/[id]"
           options={{ title: '投票', presentation: 'modal' }}
         />
+        <Stack.Screen
+          name="voice-assistant"
+          options={{ title: '音声アシスタント' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
