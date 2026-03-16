@@ -211,6 +211,42 @@ users/{uid}/
 
 ---
 
+## 5. Apple Watch 拡張（v2）
+
+### 目的
+v1のApple Watch機能（予定表示・追加・バイト代表示）に、通知連携とオフライン対応を追加する。
+
+### 5-1. Watch通知連携
+
+| 項目 | 仕様 |
+|------|------|
+| 予定リマインダー | iPhone側の通知がWatchにも配信（標準UNNotification連携） |
+| 触覚フィードバック | 通知時にHapticでユーザーに知らせる |
+| 通知アクション | Watch上で「5分後にリマインド」「確認済み」を選択可能 |
+| 共有カレンダー更新 | メンバーの予定追加/変更通知をWatch上でも受信 |
+
+#### 技術方針
+- iOSの通知はデフォルトでApple Watchに転送される（UNNotification）
+- Watch側でカスタム通知UI（`WKNotificationScene`）を実装し、予定詳細を表示
+- アクションボタン（スヌーズ / 確認）は `UNNotificationAction` で定義
+
+### 5-2. Watchオフライン対応
+
+| 項目 | 仕様 |
+|------|------|
+| キャッシュ範囲 | 今日〜3日分の予定 + 今月のバイト集計 |
+| キャッシュ方式 | `WatchConnectivity` でiPhoneからデータ転送 → Watch側の `UserDefaults` / Core Data に保存 |
+| 更新タイミング | アプリ起動時 + バックグラウンド転送（`transferUserInfo`） |
+| iPhone未接続時 | キャッシュ済みデータを表示（「最終更新: ○時間前」を表示） |
+
+#### 技術方針
+- `expo-watch-connectivity`（v1で使用済み）を拡張
+- iPhone側: 予定変更時に `WCSession.transferUserInfo()` でWatchにプッシュ
+- Watch側: 受信データを `UserDefaults` に保存、アプリ起動時に読み込み
+- 通信不可時は最終キャッシュデータで表示、古さインジケーター付き
+
+---
+
 ## 画面一覧（v2追加分）
 
 | 画面 | 概要 |
@@ -241,7 +277,8 @@ users/{uid}/
 | Phase 2 | 通知・リマインダー（ローカル通知 + FCM + Cloud Functions） | なし |
 | Phase 3 | 外部カレンダー連携（Apple Calendar → Google → Outlook → iCal） | なし |
 | Phase 4 | ウィジェット（iOS → Android） | Phase 1（オフラインデータ共有基盤を利用） |
-| Phase 5 | テスト・統合・リリース準備 | 全Phase |
+| Phase 5 | Apple Watch拡張（通知連携 + オフラインキャッシュ） | Phase 1, Phase 2 |
+| Phase 6 | テスト・統合・リリース準備 | 全Phase |
 
 ---
 
@@ -253,3 +290,4 @@ users/{uid}/
 - [x] 外部カレンダー連携 → **双方向同期、Google / Apple / Outlook / iCal 全対応**
 - [x] 競合解決 → **最終更新タイムスタンプ優先（重要な競合時はユーザー確認）**
 - [x] トークン保存 → **expo-secure-store で暗号化**
+- [x] Apple Watch v2 → **通知連携（UNNotification転送 + カスタムUI）+ オフラインキャッシュ（WatchConnectivity + UserDefaults）**
