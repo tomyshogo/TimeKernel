@@ -1,4 +1,5 @@
 import { Period } from './timetable';
+import { WeatherSettings, DEFAULT_WEATHER_SETTINGS } from './weather';
 
 export interface NightShiftSettings {
   enabled: boolean;
@@ -44,6 +45,7 @@ export interface UserSettings {
   periods: Period[];
   nightShift: NightShiftSettings;
   notifications: NotificationSettings;
+  weather: WeatherSettings;
 }
 
 export interface UserProfile {

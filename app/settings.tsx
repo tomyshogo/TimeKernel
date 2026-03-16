@@ -15,7 +15,9 @@ import { Card } from '../src/components/ui/Card';
 import { useAuthStore } from '../src/stores/authStore';
 import { updateUserName, updateUserSettings } from '../src/services/userService';
 import { sendEmailLink } from '../src/services/auth';
-import { Period, NightShiftSettings } from '../src/types';
+import { Period, NightShiftSettings, WeatherSettings } from '../src/types';
+import { clearWeatherCache } from '../src/services/weatherService';
+import { scheduleWeatherNotification } from '../src/services/weatherNotificationService';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState('');
   const [periods, setPeriods] = useState(settings.periods);
   const [nightShift, setNightShift] = useState(settings.nightShift);
+  const [weather, setWeather] = useState<WeatherSettings>(settings.weather);
 
   const handleSaveName = async () => {
     if (!uid || !name.trim()) return;
@@ -72,6 +75,20 @@ export default function SettingsScreen() {
       Alert.alert('深夜割増設定を保存しました');
     } catch {
       Alert.alert('エラー', '深夜割増設定の保存に失敗しました');
+    }
+  };
+
+  const handleSaveWeather = async () => {
+    if (!uid) return;
+    try {
+      const newSettings = { ...settings, weather };
+      await updateUserSettings(uid, { weather });
+      setSettings(newSettings);
+      await clearWeatherCache();
+      await scheduleWeatherNotification(weather);
+      Alert.alert('天気設定を保存しました');
+    } catch {
+      Alert.alert('エラー', '天気設定の保存に失敗しました');
     }
   };
 
@@ -160,6 +177,69 @@ export default function SettingsScreen() {
         <Button
           title="深夜割増設定を保存"
           onPress={handleSaveNightShift}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>天気・服装提案</Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.label}>天気表示</Text>
+          <Switch
+            value={weather.enabled}
+            onValueChange={(enabled) => setWeather({ ...weather, enabled })}
+          />
+        </View>
+        {weather.enabled && (
+          <>
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>位置情報を自動取得</Text>
+              <Switch
+                value={weather.autoLocation}
+                onValueChange={(autoLocation) =>
+                  setWeather({ ...weather, autoLocation })
+                }
+              />
+            </View>
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>朝の天気通知</Text>
+              <Switch
+                value={weather.morningNotification}
+                onValueChange={(morningNotification) =>
+                  setWeather({ ...weather, morningNotification })
+                }
+              />
+            </View>
+            {weather.morningNotification && (
+              <>
+                <Text style={styles.label}>通知時刻</Text>
+                <TextInput
+                  style={styles.input}
+                  value={weather.morningNotificationTime}
+                  onChangeText={(morningNotificationTime) =>
+                    setWeather({ ...weather, morningNotificationTime })
+                  }
+                  placeholder="07:00"
+                />
+              </>
+            )}
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>華氏表示</Text>
+              <Switch
+                value={weather.unit === 'fahrenheit'}
+                onValueChange={(isFahrenheit) =>
+                  setWeather({
+                    ...weather,
+                    unit: isFahrenheit ? 'fahrenheit' : 'celsius',
+                  })
+                }
+              />
+            </View>
+          </>
+        )}
+        <Button
+          title="天気設定を保存"
+          onPress={handleSaveWeather}
           style={{ marginTop: 12 }}
         />
       </Card>

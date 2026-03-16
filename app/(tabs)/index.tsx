@@ -9,11 +9,13 @@ import { AgendaView } from '../../src/components/calendar/AgendaView';
 import { DayDetail } from '../../src/components/calendar/DayDetail';
 import { ViewSwitcher } from '../../src/components/calendar/ViewSwitcher';
 import { QuickInputBar } from '../../src/components/calendar/QuickInputBar';
+import { WeatherCard } from '../../src/components/weather/WeatherCard';
 import { useEvents } from '../../src/hooks/useEvents';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
 import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
+import { useWeather } from '../../src/hooks/useWeather';
 import { useUIStore } from '../../src/stores/uiStore';
 import { updateEvent, addEvent } from '../../src/services/eventService';
 import {
@@ -39,9 +41,11 @@ export default function CalendarScreen() {
     setCurrentMonth,
     setViewType,
   } = useUIStore();
+  const weatherSettings = useAuthStore((s) => s.settings.weather);
   const { events: firestoreEvents } = useEvents(uid, currentMonth);
   const { timetables } = useTimetables();
   const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth);
+  const { weather, isLoading: weatherLoading, error: weatherError, refresh: weatherRefresh } = useWeather(weatherSettings);
 
   const handleEventPress = (event: CalendarEvent) => {
     if (event.id.startsWith('timetable_')) return;
@@ -172,6 +176,13 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      <WeatherCard
+        weather={weather}
+        isLoading={weatherLoading}
+        error={weatherError}
+        settings={weatherSettings}
+        onRefresh={weatherRefresh}
+      />
       <QuickInputBar onParsed={handleQuickInput} />
       <ViewSwitcher current={viewType} onChange={setViewType} />
       <View style={styles.content}>{renderView()}</View>
