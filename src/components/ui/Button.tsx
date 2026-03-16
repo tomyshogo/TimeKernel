@@ -1,11 +1,20 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
+  Pressable,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  interpolateColor,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface Props {
   title: string;
@@ -14,7 +23,14 @@ interface Props {
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  icon?: React.ReactNode;
 }
+
+const COLORS = {
+  primary: { bg: '#3498db', pressed: '#2980b9', text: '#fff' },
+  secondary: { bg: '#f0f2f5', pressed: '#e4e6ea', text: '#2c3e50' },
+  danger: { bg: '#e74c3c', pressed: '#c0392b', text: '#fff' },
+};
 
 export function Button({
   title,
@@ -23,44 +39,78 @@ export function Button({
   loading = false,
   disabled = false,
   style,
+  icon,
 }: Props) {
-  const bgColor =
-    variant === 'primary'
-      ? '#3498db'
-      : variant === 'danger'
-        ? '#e74c3c'
-        : '#ecf0f1';
-  const textColor = variant === 'secondary' ? '#2c3e50' : '#fff';
+  const scale = useSharedValue(1);
+  const pressed = useSharedValue(0);
+  const colors = COLORS[variant];
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    backgroundColor: interpolateColor(
+      pressed.value,
+      [0, 1],
+      [colors.bg, colors.pressed]
+    ),
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 200 });
+    pressed.value = withSpring(1, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+    pressed.value = withSpring(0, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={[
         styles.button,
-        { backgroundColor: bgColor, opacity: disabled ? 0.5 : 1 },
+        animatedStyle,
+        disabled && styles.disabled,
         style,
       ]}
-      onPress={onPress}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
     >
       {loading ? (
-        <ActivityIndicator color={textColor} />
+        <ActivityIndicator color={colors.text} size="small" />
       ) : (
-        <Text style={[styles.text, { color: textColor }]}>{title}</Text>
+        <>
+          {icon}
+          <Text style={[styles.text, { color: colors.text }, icon ? { marginLeft: 6 } : undefined]}>
+            {title}
+          </Text>
+        </>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 12,
+    flexDirection: 'row',
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  disabled: {
+    opacity: 0.45,
+  },
   text: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

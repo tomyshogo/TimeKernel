@@ -4,12 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Linking,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useLocalSearchParams } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../src/services/firebase';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
@@ -20,7 +21,6 @@ import { ja } from 'date-fns/locale';
 
 export default function ExamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const [exam, setExam] = useState<ExamSchedule | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,6 +46,7 @@ export default function ExamDetailScreen() {
   if (!exam) {
     return (
       <View style={styles.center}>
+        <Ionicons name="alert-circle-outline" size={48} color="#d5d8dc" />
         <Text style={styles.errorText}>試験データが見つかりません</Text>
       </View>
     );
@@ -53,69 +54,177 @@ export default function ExamDetailScreen() {
 
   const daysUntil = getDaysUntilExam(exam.examDate);
   const daysLabel = getDaysLabel(daysUntil);
+  const isUrgent = daysUntil <= 7 && daysUntil >= 0;
+  const isOver = daysUntil < 0;
 
   const formatTs = (ts: { toDate: () => Date }) =>
     format(ts.toDate(), 'yyyy年M月d日(E)', { locale: ja });
 
+  const countdownColor = isOver ? '#95a5a6' : isUrgent ? '#e74c3c' : '#3498db';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Card>
-        <Text style={styles.category}>
-          {EXAM_CATEGORY_LABELS[exam.category]}
-        </Text>
-        <Text style={styles.title}>{exam.name}</Text>
-
-        <View style={styles.countdownBadge}>
-          <Text style={[
-            styles.countdownText,
-            daysUntil <= 7 && daysUntil >= 0 && styles.countdownUrgent,
-          ]}>
-            {daysLabel}
-          </Text>
-        </View>
-      </Card>
-
-      <Card>
-        <Text style={styles.sectionTitle}>日程</Text>
-        <InfoRow label="試験日" value={formatTs(exam.examDate)} />
-        <InfoRow label="申込開始" value={formatTs(exam.applicationStart)} />
-        <InfoRow label="申込締切" value={formatTs(exam.applicationDeadline)} />
-        {exam.resultDate && (
-          <InfoRow label="結果発表" value={formatTs(exam.resultDate)} />
-        )}
-      </Card>
-
-      <Card>
-        <Text style={styles.sectionTitle}>詳細</Text>
-        <InfoRow label="受験料" value={exam.fee} />
-        {exam.notes && <InfoRow label="備考" value={exam.notes} />}
-      </Card>
-
-      {exam.officialUrl && (
+      {/* Hero section */}
+      <Animated.View entering={FadeInDown.duration(400).springify()}>
         <Card>
-          <Button
-            title="公式サイトを開く"
-            onPress={() => Linking.openURL(exam.officialUrl)}
-          />
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>
+              {EXAM_CATEGORY_LABELS[exam.category]}
+            </Text>
+          </View>
+          <Text style={styles.title}>{exam.name}</Text>
+
+          <View style={styles.countdownSection}>
+            <View style={[styles.countdownCircle, { borderColor: countdownColor }]}>
+              <Text style={[styles.countdownNumber, { color: countdownColor }]}>
+                {isOver ? '—' : Math.abs(daysUntil)}
+              </Text>
+              <Text style={[styles.countdownUnit, { color: countdownColor }]}>
+                {daysLabel}
+              </Text>
+            </View>
+          </View>
         </Card>
+      </Animated.View>
+
+      {/* Schedule */}
+      <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+        <Card>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="calendar-outline" size={18} color="#3498db" />
+            <Text style={styles.sectionTitle}>日程</Text>
+          </View>
+          <InfoRow
+            icon="flag-outline"
+            label="試験日"
+            value={formatTs(exam.examDate)}
+            highlight
+          />
+          <InfoRow
+            icon="play-outline"
+            label="申込開始"
+            value={formatTs(exam.applicationStart)}
+          />
+          <InfoRow
+            icon="alert-circle-outline"
+            label="申込締切"
+            value={formatTs(exam.applicationDeadline)}
+            danger
+          />
+          {exam.resultDate && (
+            <InfoRow
+              icon="ribbon-outline"
+              label="結果発表"
+              value={formatTs(exam.resultDate)}
+            />
+          )}
+        </Card>
+      </Animated.View>
+
+      {/* Details */}
+      <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+        <Card>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle-outline" size={18} color="#e67e22" />
+            <Text style={styles.sectionTitle}>詳細</Text>
+          </View>
+          <InfoRow icon="card-outline" label="受験料" value={exam.fee} />
+          {exam.notes && (
+            <InfoRow icon="reader-outline" label="備考" value={exam.notes} />
+          )}
+        </Card>
+      </Animated.View>
+
+      {/* Official link */}
+      {exam.officialUrl && (
+        <Animated.View entering={FadeInUp.delay(300).duration(400).springify()}>
+          <Card>
+            <Button
+              title="公式サイトを開く"
+              onPress={() => Linking.openURL(exam.officialUrl)}
+              icon={<Ionicons name="open-outline" size={18} color="#fff" />}
+            />
+          </Card>
+        </Animated.View>
       )}
     </ScrollView>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  icon,
+  label,
+  value,
+  highlight,
+  danger,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  highlight?: boolean;
+  danger?: boolean;
+}) {
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={infoStyles.row}>
+      <View style={infoStyles.labelSection}>
+        <Ionicons
+          name={icon as any}
+          size={16}
+          color={danger ? '#e74c3c' : highlight ? '#3498db' : '#95a5a6'}
+        />
+        <Text style={infoStyles.label}>{label}</Text>
+      </View>
+      <Text
+        style={[
+          infoStyles.value,
+          highlight && infoStyles.highlightValue,
+          danger && infoStyles.dangerValue,
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
 
+const infoStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f0f2f5',
+  },
+  labelSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  value: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  highlightValue: {
+    color: '#3498db',
+    fontWeight: '700',
+  },
+  dangerValue: {
+    color: '#e74c3c',
+    fontWeight: '700',
+  },
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f7fa',
   },
   content: {
     paddingVertical: 8,
@@ -125,58 +234,62 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
   },
   errorText: {
     fontSize: 16,
     color: '#95a5a6',
   },
-  category: {
+  categoryBadge: {
+    backgroundColor: '#8e44ad15',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  categoryText: {
     fontSize: 13,
     color: '#8e44ad',
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1a1a2e',
+    letterSpacing: -0.3,
+    marginBottom: 16,
+  },
+  countdownSection: {
+    alignItems: 'center',
+  },
+  countdownCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  countdownUnit: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#2c3e50',
+    marginTop: -2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
-  },
-  countdownBadge: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignSelf: 'flex-start',
-  },
-  countdownText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2c3e50',
-  },
-  countdownUrgent: {
-    color: '#e74c3c',
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2c3e50',
-    marginBottom: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ecf0f1',
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#7f8c8d',
-  },
-  infoValue: {
-    fontSize: 14,
-    color: '#2c3e50',
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#1a1a2e',
   },
 });
