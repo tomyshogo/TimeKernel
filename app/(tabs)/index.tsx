@@ -16,6 +16,7 @@ import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
 import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
 import { useWeather } from '../../src/hooks/useWeather';
+import { useExamSchedules } from '../../src/hooks/useExamSchedules';
 import { useUIStore } from '../../src/stores/uiStore';
 import { updateEvent, addEvent } from '../../src/services/eventService';
 import {
@@ -44,11 +45,17 @@ export default function CalendarScreen() {
   const weatherSettings = useAuthStore((s) => s.settings.weather);
   const { events: firestoreEvents } = useEvents(uid, currentMonth);
   const { timetables } = useTimetables();
-  const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth);
+  const { exams: examSchedules } = useExamSchedules();
+  const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth, examSchedules);
   const { weather, isLoading: weatherLoading, error: weatherError, refresh: weatherRefresh } = useWeather(weatherSettings);
 
   const handleEventPress = (event: CalendarEvent) => {
     if (event.id.startsWith('timetable_')) return;
+    if (event.id.startsWith('exam_')) {
+      const examId = event.id.split('_')[1];
+      router.push(`/exam/${examId}`);
+      return;
+    }
     router.push(`/event/${event.id}?calendarId=${event.calendarId}`);
   };
 

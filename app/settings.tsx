@@ -254,6 +254,15 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>資格試験カレンダー</Text>
+        <Button
+          title="資格試験の購読設定"
+          variant="secondary"
+          onPress={() => router.push('/exam')}
+        />
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>外部カレンダー連携</Text>
         <Button
           title="外部カレンダー管理"
