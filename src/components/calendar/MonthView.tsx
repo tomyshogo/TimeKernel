@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { View, StyleSheet, Text, PanResponder, Dimensions } from 'react-native';
 import { DayCell } from './DayCell';
 import { CalendarHeader } from './CalendarHeader';
 import { getDaysInMonthGrid } from '../../utils/dateHelpers';
@@ -15,6 +15,7 @@ interface Props {
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+const SWIPE_THRESHOLD = 50;
 
 export function MonthView({
   currentMonth,
@@ -25,6 +26,30 @@ export function MonthView({
   onNextMonth,
 }: Props) {
   const days = getDaysInMonthGrid(currentMonth);
+  const swipeHandled = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // 水平方向のスワイプのみキャプチャ
+        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+      },
+      onPanResponderGrant: () => {
+        swipeHandled.current = false;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (swipeHandled.current) return;
+        if (gestureState.dx > SWIPE_THRESHOLD) {
+          swipeHandled.current = true;
+          onPrevMonth();
+        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+          swipeHandled.current = true;
+          onNextMonth();
+        }
+      },
+    })
+  ).current;
 
   const eventsByDate = new Map<string, CalendarEvent[]>();
   for (const event of events) {
@@ -34,7 +59,7 @@ export function MonthView({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       <CalendarHeader
         month={currentMonth}
         onPrev={onPrevMonth}
@@ -43,19 +68,15 @@ export function MonthView({
       <View style={styles.weekdayRow}>
         {WEEKDAY_LABELS.map((label, i) => (
           <View key={i} style={styles.weekdayCell}>
-            <React.Fragment>
-              {React.createElement(
-                require('react-native').Text,
-                {
-                  style: [
-                    styles.weekdayText,
-                    i === 0 && { color: '#e74c3c' },
-                    i === 6 && { color: '#3498db' },
-                  ],
-                },
-                label
-              )}
-            </React.Fragment>
+            <Text
+              style={[
+                styles.weekdayText,
+                i === 0 && { color: '#e74c3c' },
+                i === 6 && { color: '#3498db' },
+              ]}
+            >
+              {label}
+            </Text>
           </View>
         ))}
       </View>

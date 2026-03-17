@@ -11,6 +11,7 @@ export function useWeather(settings: WeatherSettings = DEFAULT_WEATHER_SETTINGS)
   const refresh = useCallback(async () => {
     if (!settings.enabled) {
       setWeather(null);
+      setError(null);
       return;
     }
 
@@ -21,7 +22,12 @@ export function useWeather(settings: WeatherSettings = DEFAULT_WEATHER_SETTINGS)
       const data = await fetchWeather(settings);
       setWeather(data);
       if (!data) {
-        setError('天気データを取得できませんでした');
+        const apiKey = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+        if (!apiKey) {
+          setError('天気APIキーが未設定です');
+        } else {
+          setError('天気データを取得できませんでした');
+        }
       }
     } catch (e) {
       setError('天気データの取得に失敗しました');

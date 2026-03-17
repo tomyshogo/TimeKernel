@@ -1,7 +1,8 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/hooks/useAuth';
 import { useNotifications } from '../src/hooks/useNotifications';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
@@ -9,6 +10,24 @@ import { ToastContainer } from '../src/components/ui/Toast';
 import { CelebrationOverlay } from '../src/components/ui/CelebrationOverlay';
 import AuthScreen from './auth';
 import OnboardingScreen from './onboarding';
+
+function CloseButton() {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginRight: 16 }}>
+      <Ionicons name="close" size={24} color="#2c3e50" />
+    </Pressable>
+  );
+}
+
+function BackButton() {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginLeft: 16 }}>
+      <Ionicons name="chevron-back" size={24} color="#2c3e50" />
+    </Pressable>
+  );
+}
 
 export default function RootLayout() {
   const { isLoading, isAuthenticated, isNewUser } = useAuth();
@@ -40,18 +59,33 @@ export default function RootLayout() {
           headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#2c3e50',
           headerTitleStyle: { fontWeight: '700' },
-          headerBackTitle: '戻る',
+          headerBackTitle: '',
+          headerLeft: () => <BackButton />,
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, headerBackTitle: '' }} />
-        <Stack.Screen name="settings" options={{ title: '設定' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, headerLeft: undefined }} />
+        <Stack.Screen name="settings/index" options={{ title: '設定' }} />
+        <Stack.Screen name="settings/profile" options={{ title: 'プロフィール' }} />
+        <Stack.Screen name="settings/periods" options={{ title: '時限設定' }} />
+        <Stack.Screen name="settings/weather" options={{ title: '天気・服装提案' }} />
+        <Stack.Screen name="settings/night-shift" options={{ title: '深夜割増設定' }} />
         <Stack.Screen
           name="event/new"
-          options={{ title: '予定を追加', presentation: 'modal' }}
+          options={{
+            title: '予定を追加',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen
           name="event/[id]"
-          options={{ title: '予定を編集', presentation: 'modal' }}
+          options={{
+            title: '予定を編集',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen name="calendar/index" options={{ title: 'カレンダー管理' }} />
         <Stack.Screen name="calendar/new" options={{ title: 'カレンダー作成' }} />
@@ -83,11 +117,21 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="task/new"
-          options={{ title: '課題を追加', presentation: 'modal' }}
+          options={{
+            title: '課題を追加',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen
           name="task/[id]"
-          options={{ title: '課題を編集', presentation: 'modal' }}
+          options={{
+            title: '課題を編集',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen
           name="study-stats"
@@ -95,11 +139,21 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="poll/new"
-          options={{ title: '投票を作成', presentation: 'modal' }}
+          options={{
+            title: '投票を作成',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen
           name="poll/[id]"
-          options={{ title: '投票', presentation: 'modal' }}
+          options={{
+            title: '投票',
+            presentation: 'modal',
+            headerLeft: undefined,
+            headerRight: () => <CloseButton />,
+          }}
         />
         <Stack.Screen
           name="exam/index"

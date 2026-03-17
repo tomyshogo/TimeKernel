@@ -48,11 +48,18 @@ const PHASE_LABELS: Record<PomodoroPhase, string> = {
   longBreak: '大休憩',
 };
 
+const WORK_PRESETS = [15, 20, 25, 30, 45, 50, 60];
+
 export default function PomodoroScreen() {
   const router = useRouter();
   const uid = useAuthStore((s) => s.uid);
 
-  const settings = DEFAULT_POMODORO_SETTINGS;
+  const [workMinutes, setWorkMinutes] = useState(DEFAULT_POMODORO_SETTINGS.workMinutes);
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const settings = {
+    ...DEFAULT_POMODORO_SETTINGS,
+    workMinutes,
+  };
   const streak = useStreak(uid);
   const [phase, setPhase] = useState<PomodoroPhase>('work');
   const [secondsLeft, setSecondsLeft] = useState(settings.workMinutes * 60);
@@ -250,6 +257,44 @@ export default function PomodoroScreen() {
             </Text>
           </View>
         </View>
+        {/* 時間変更ボタン */}
+        {!isRunning && phase === 'work' && !startTimeRef.current && (
+          <TouchableOpacity
+            style={styles.durationToggle}
+            onPress={() => setShowDurationPicker(!showDurationPicker)}
+          >
+            <Text style={styles.durationToggleText}>
+              {workMinutes}分 ▾
+            </Text>
+          </TouchableOpacity>
+        )}
+        {showDurationPicker && !isRunning && (
+          <View style={styles.durationPicker}>
+            {WORK_PRESETS.map((min) => (
+              <TouchableOpacity
+                key={min}
+                style={[
+                  styles.durationChip,
+                  workMinutes === min && styles.durationChipActive,
+                ]}
+                onPress={() => {
+                  setWorkMinutes(min);
+                  setSecondsLeft(min * 60);
+                  setShowDurationPicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.durationChipText,
+                    workMinutes === min && styles.durationChipTextActive,
+                  ]}
+                >
+                  {min}分
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* ストリーク表示 */}
@@ -520,5 +565,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#95a5a6',
     marginTop: 4,
+  },
+  durationToggle: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#f0f3f8',
+    borderRadius: 14,
+  },
+  durationToggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3498db',
+  },
+  durationPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  durationChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#f0f3f8',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  durationChipActive: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  durationChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  durationChipTextActive: {
+    color: '#fff',
   },
 });

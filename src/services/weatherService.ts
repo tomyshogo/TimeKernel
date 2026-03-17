@@ -5,6 +5,9 @@ import { getLocation } from './locationService';
 const CACHE_KEY = 'weather_cache';
 const CACHE_TTL = 3 * 60 * 60 * 1000; // 3時間
 
+// フォールバック位置（東京）
+const FALLBACK_LOCATION = { lat: 35.6762, lon: 139.6503 };
+
 /**
  * OpenWeatherMap APIキーを取得
  * 環境変数または Firebase Remote Config から取得
@@ -21,6 +24,12 @@ export async function fetchWeather(
 ): Promise<WeatherData | null> {
   if (!settings.enabled) return null;
 
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.warn('[Weather] API key not configured (EXPO_PUBLIC_OPENWEATHER_API_KEY)');
+    return null;
+  }
+
   // キャッシュ確認
   const cached = await getCachedWeather();
   if (cached) return cached;
@@ -31,14 +40,22 @@ export async function fetchWeather(
 
   if (settings.autoLocation) {
     const location = await getLocation();
-    if (!location) return null;
-    lat = location.lat;
-    lon = location.lon;
+    if (location) {
+      lat = location.lat;
+      lon = location.lon;
+    } else {
+      // 位置情報取得失敗時はフォールバック（東京）を使用
+      console.warn('[Weather] Location unavailable, using fallback (Tokyo)');
+      lat = FALLBACK_LOCATION.lat;
+      lon = FALLBACK_LOCATION.lon;
+    }
   } else if (settings.manualLocation) {
     lat = settings.manualLocation.lat;
     lon = settings.manualLocation.lon;
   } else {
-    return null;
+    // manualLocationも未設定ならフォールバック
+    lat = FALLBACK_LOCATION.lat;
+    lon = FALLBACK_LOCATION.lon;
   }
 
   // API呼び出し

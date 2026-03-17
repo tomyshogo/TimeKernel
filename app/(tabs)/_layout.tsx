@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useRef } from 'react';
+import { View, StyleSheet, Pressable, Platform, PanResponder, Text } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
@@ -8,6 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useCalendars } from '../../src/hooks/useCalendars';
+import { useCalendarStore } from '../../src/stores/calendarStore';
 
 function SettingsButton() {
   const router = useRouter();
@@ -42,7 +44,54 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
         size={22}
         color={color}
       />
-      {focused && <View style={[styles.activeDot, { backgroundColor: color }]} />}
+    </View>
+  );
+}
+
+/** カレンダータブアイコン - 上下スワイプでカレンダー切り替え */
+function CalendarTabIcon({ color, focused }: { color: string; focused: boolean }) {
+  const { calendars } = useCalendars();
+  const { selectedCalendarIds, setSelectedCalendarIds } = useCalendarStore();
+  const swipeHandled = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
+      onPanResponderGrant: () => {
+        swipeHandled.current = false;
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (swipeHandled.current || calendars.length < 2) return;
+        if (Math.abs(gs.dy) < 30) return;
+        swipeHandled.current = true;
+
+        const currentId = selectedCalendarIds[0];
+        const currentIdx = calendars.findIndex((c) => c.id === currentId);
+        let nextIdx: number;
+
+        if (gs.dy < 0) {
+          // スワイプアップ → 次のカレンダー
+          nextIdx = (currentIdx + 1) % calendars.length;
+        } else {
+          // スワイプダウン → 前のカレンダー
+          nextIdx = (currentIdx - 1 + calendars.length) % calendars.length;
+        }
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setSelectedCalendarIds([calendars[nextIdx].id]);
+      },
+    })
+  ).current;
+
+  return (
+    <View {...panResponder.panHandlers} style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+      <Ionicons
+        name={focused ? 'calendar' : 'calendar-outline'}
+        size={22}
+        color={color}
+      />
     </View>
   );
 }
@@ -85,7 +134,7 @@ export default function TabLayout() {
         options={{
           title: 'カレンダー',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="calendar-outline" color={color} focused={focused} />
+            <CalendarTabIcon color={color} focused={focused} />
           ),
         }}
       />
@@ -110,7 +159,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="pomodoro"
         options={{
-          title: 'タイマー',
+          title: 'ポモドーロ',
+          headerTitle: 'ポモドーロタイマー',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="timer-outline" color={color} focused={focused} />
           ),
@@ -146,11 +196,5 @@ const styles = StyleSheet.create({
   },
   iconContainerActive: {
     // active state placeholder
-  },
-  activeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 3,
   },
 });
