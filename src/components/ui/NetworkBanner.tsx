@@ -1,13 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useNetwork } from '../../hooks/useNetwork';
+import { useNetworkStore } from '../../stores/networkStore';
 
 export function NetworkBanner() {
   const { isConnected, isSyncing } = useNetwork();
+  const pendingActions = useNetworkStore((s) => s.pendingActions);
 
   if (isConnected && !isSyncing) return null;
 
-  const label = !isConnected ? 'オフライン' : '同期中...';
+  const label = !isConnected
+    ? pendingActions > 0
+      ? `オフライン（${pendingActions}件の同期待ち）`
+      : 'オフライン'
+    : '同期中...';
   const bgColor = !isConnected ? '#e74c3c' : '#f39c12';
 
   return (
@@ -19,7 +25,7 @@ export function NetworkBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     alignItems: 'center',
   },
   text: {

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
@@ -19,6 +18,12 @@ import {
   TASK_STATUS_LABELS,
   TASK_STATUS_COLORS,
 } from '../../src/types';
+import { TaskListSkeleton } from '../../src/components/ui/Skeleton';
+import { SwipeableRow } from '../../src/components/ui/SwipeableRow';
+import { deleteTask } from '../../src/services/taskService';
+import { toast } from '../../src/components/ui/Toast';
+import { celebrate } from '../../src/components/ui/CelebrationOverlay';
+import * as Haptics from 'expo-haptics';
 
 type FilterStatus = 'all' | TaskStatus;
 
@@ -40,6 +45,37 @@ export default function TasksScreen() {
 
   const filteredTasks = filter === 'all' ? tasks : tasks.filter((t) => t.status === filter);
 
+  // Todoist風グルーピング
+  const groupTasks = (taskList: Task[]) => {
+    const now = new Date();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const threeDaysLater = new Date(todayEnd.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const groups: { title: string; color: string; tasks: Task[] }[] = [
+      { title: '期限超過', color: '#e74c3c', tasks: [] },
+      { title: '今日', color: '#e67e22', tasks: [] },
+      { title: '近日中（3日以内）', color: '#f39c12', tasks: [] },
+      { title: 'それ以降', color: '#7f8c8d', tasks: [] },
+    ];
+
+    for (const task of taskList) {
+      const d = task.deadline?.toDate?.() || new Date(task.deadline);
+      if (d.getTime() < now.getTime()) {
+        groups[0].tasks.push(task);
+      } else if (d.getTime() <= todayEnd.getTime()) {
+        groups[1].tasks.push(task);
+      } else if (d.getTime() <= threeDaysLater.getTime()) {
+        groups[2].tasks.push(task);
+      } else {
+        groups[3].tasks.push(task);
+      }
+    }
+
+    return groups.filter((g) => g.tasks.length > 0);
+  };
+
+  const taskGroups = groupTasks(filteredTasks);
+
   const handleStatusToggle = async (task: Task) => {
     if (!uid) return;
     const nextStatus: TaskStatus =
@@ -49,6 +85,11 @@ export default function TasksScreen() {
           ? 'done'
           : 'todo';
     await updateTaskStatus(uid, task.id, nextStatus);
+    if (nextStatus === 'done') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      celebrate();
+      toast.success('課題を完了しました！');
+    }
   };
 
   const getDeadlineText = (deadline: any) => {
@@ -76,8 +117,8 @@ export default function TasksScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3498db" />
+      <View style={styles.container}>
+        <TaskListSkeleton count={4} />
       </View>
     );
   }
@@ -115,52 +156,94 @@ export default function TasksScreen() {
             </Text>
           </Card>
         ) : (
-          filteredTasks.map((task) => (
-            <Card key={task.id}>
-              <TouchableOpacity
-                onPress={() => router.push(`/task/${task.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.taskHeader}>
-                  <View style={styles.taskTitleRow}>
-                    <TouchableOpacity
-                      onPress={() => handleStatusToggle(task)}
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: TASK_STATUS_COLORS[task.status] },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.taskTitle,
-                        task.status === 'done' && styles.taskTitleDone,
-                      ]}
-                    >
-                      {task.title}
-                    </Text>
-                  </View>
-                  <Text style={styles.taskType}>
-                    {TASK_TYPE_LABELS[task.type]}
-                  </Text>
-                </View>
-
-                <View style={styles.taskMeta}>
-                  <Text style={styles.subjectLabel}>{task.subject}</Text>
-                  <Text
-                    style={[
-                      styles.deadlineText,
-                      { color: getDeadlineColor(task.deadline) },
-                    ]}
-                  >
-                    {getDeadlineText(task.deadline)}
-                  </Text>
-                </View>
-
-                <Text style={styles.statusLabel}>
-                  {TASK_STATUS_LABELS[task.status]}
+          taskGroups.map((group) => (
+            <View key={group.title}>
+              <View style={styles.groupHeader}>
+                <View style={[styles.groupDot, { backgroundColor: group.color }]} />
+                <Text style={[styles.groupTitle, { color: group.color }]}>
+                  {group.title}
                 </Text>
-              </TouchableOpacity>
-            </Card>
+                <Text style={styles.groupCount}>{group.tasks.length}</Text>
+              </View>
+              {group.tasks.map((task) => (
+                <SwipeableRow
+                  key={task.id}
+                  leftAction={
+                    task.status !== 'done'
+                      ? {
+                          label: '完了',
+                          color: '#2ecc71',
+                          onPress: () => {
+                            if (uid) {
+                              updateTaskStatus(uid, task.id, 'done');
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                              celebrate();
+                              toast.success('課題を完了しました！');
+                            }
+                          },
+                        }
+                      : undefined
+                  }
+                  rightAction={{
+                    label: '削除',
+                    color: '#e74c3c',
+                    onPress: () => {
+                      if (uid) {
+                        deleteTask(uid, task.id).then(() =>
+                          toast.success('課題を削除しました')
+                        );
+                      }
+                    },
+                  }}
+                >
+                  <Card>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/task/${task.id}`)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.taskHeader}>
+                        <View style={styles.taskTitleRow}>
+                          <TouchableOpacity
+                            onPress={() => handleStatusToggle(task)}
+                            style={[
+                              styles.statusDot,
+                              { backgroundColor: TASK_STATUS_COLORS[task.status] },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.taskTitle,
+                              task.status === 'done' && styles.taskTitleDone,
+                            ]}
+                          >
+                            {task.title}
+                          </Text>
+                        </View>
+                        <Text style={styles.taskType}>
+                          {TASK_TYPE_LABELS[task.type]}
+                        </Text>
+                      </View>
+
+                      <View style={styles.taskMeta}>
+                        <Text style={styles.subjectLabel}>{task.subject}</Text>
+                        <Text
+                          style={[
+                            styles.deadlineText,
+                            { color: getDeadlineColor(task.deadline) },
+                          ]}
+                        >
+                          {getDeadlineText(task.deadline)}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.statusLabel}>
+                        {TASK_STATUS_LABELS[task.status]}
+                      </Text>
+                    </TouchableOpacity>
+                  </Card>
+                </SwipeableRow>
+              ))}
+            </View>
           ))
         )}
       </ScrollView>
@@ -211,6 +294,35 @@ const styles = StyleSheet.create({
   content: {
     paddingVertical: 8,
     paddingBottom: 80,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  groupDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    flex: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  groupCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#95a5a6',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
   emptyText: {
     fontSize: 14,

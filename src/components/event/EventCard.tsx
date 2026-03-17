@@ -1,34 +1,75 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  FadeInRight,
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { CalendarEvent } from '../../types';
 import { EVENT_TYPE_LABELS } from '../../utils/constants';
 
 interface Props {
   event: CalendarEvent;
   onPress: () => void;
+  index?: number;
 }
 
-export function EventCard({ event, onPress }: Props) {
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TYPE_ICONS: Record<string, string> = {
+  class: 'school-outline',
+  event: 'calendar-outline',
+  shift: 'wallet-outline',
+};
+
+export function EventCard({ event, onPress, index = 0 }: Props) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <View style={[styles.colorBar, { backgroundColor: event.color }]} />
+    <AnimatedPressable
+      style={[styles.container, animatedStyle]}
+      onPress={onPress}
+      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 200 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 200 }); }}
+      entering={FadeInRight.delay(index * 50).duration(300).springify()}
+    >
+      <View style={[styles.colorAccent, { backgroundColor: event.color }]}>
+        <Ionicons
+          name={(TYPE_ICONS[event.type] || 'ellipse') as any}
+          size={14}
+          color="#fff"
+        />
+      </View>
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{event.title}</Text>
+            <Text style={styles.title} numberOfLines={1}>{event.title}</Text>
             {event.hasPendingWrites && (
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingText}>同期待ち</Text>
+                <Ionicons name="cloud-upload-outline" size={10} color="#fff" />
               </View>
             )}
           </View>
-          <Text style={styles.type}>{EVENT_TYPE_LABELS[event.type]}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: event.color + '15' }]}>
+            <Text style={[styles.typeText, { color: event.color }]}>
+              {EVENT_TYPE_LABELS[event.type]}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.time}>
-          {event.startTime} - {event.endTime}
-        </Text>
+        <View style={styles.timeRow}>
+          <Ionicons name="time-outline" size={13} color="#95a5a6" />
+          <Text style={styles.time}>
+            {event.startTime} - {event.endTime}
+          </Text>
+        </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
@@ -36,21 +77,26 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 14,
     marginVertical: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowRadius: 8,
+    elevation: 2,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
-  colorBar: {
-    width: 4,
+  colorAccent: {
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
     padding: 12,
+    paddingLeft: 10,
   },
   header: {
     flexDirection: 'row',
@@ -65,31 +111,36 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: '#1a1a2e',
+    flex: 1,
   },
   pendingBadge: {
     backgroundColor: '#f39c12',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pendingText: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  type: {
-    fontSize: 12,
-    color: '#95a5a6',
-    backgroundColor: '#f0f0f0',
+  typeBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  typeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
   },
   time: {
     fontSize: 13,
     color: '#7f8c8d',
-    marginTop: 4,
+    fontWeight: '500',
   },
 });

@@ -7,3 +7,5 @@ export * from './task';
 export * from './pomodoro';
 export * from './poll';
 export * from './calendarGroup';
+export * from './weather';
+export * from './exam';

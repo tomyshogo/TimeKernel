@@ -5,6 +5,8 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
 import { useNotifications } from '../src/hooks/useNotifications';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
+import { ToastContainer } from '../src/components/ui/Toast';
+import { CelebrationOverlay } from '../src/components/ui/CelebrationOverlay';
 import AuthScreen from './auth';
 import OnboardingScreen from './onboarding';
 
@@ -31,14 +33,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NetworkBanner />
+      <ToastContainer />
+      <CelebrationOverlay />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#2c3e50',
           headerTitleStyle: { fontWeight: '700' },
+          headerBackTitle: '戻る',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, headerBackTitle: '' }} />
         <Stack.Screen name="settings" options={{ title: '設定' }} />
         <Stack.Screen
           name="event/new"
@@ -95,6 +100,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="poll/[id]"
           options={{ title: '投票', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="exam/index"
+          options={{ title: '試験日程' }}
+        />
+        <Stack.Screen
+          name="exam/[id]"
+          options={{ title: '試験詳細' }}
         />
         <Stack.Screen
           name="voice-assistant"

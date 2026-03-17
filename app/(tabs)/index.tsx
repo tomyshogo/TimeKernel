@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MonthView } from '../../src/components/calendar/MonthView';
@@ -9,13 +9,21 @@ import { AgendaView } from '../../src/components/calendar/AgendaView';
 import { DayDetail } from '../../src/components/calendar/DayDetail';
 import { ViewSwitcher } from '../../src/components/calendar/ViewSwitcher';
 import { QuickInputBar } from '../../src/components/calendar/QuickInputBar';
+import { WeatherCard } from '../../src/components/weather/WeatherCard';
 import { useEvents } from '../../src/hooks/useEvents';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
 import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
+import { useWeather } from '../../src/hooks/useWeather';
+import { useExamSchedules } from '../../src/hooks/useExamSchedules';
 import { useUIStore } from '../../src/stores/uiStore';
 import { updateEvent, addEvent } from '../../src/services/eventService';
+import { useCalendars } from '../../src/hooks/useCalendars';
+import { QuickEventSheet } from '../../src/components/event/QuickEventSheet';
+import { scheduleEventReminder } from '../../src/services/notificationService';
+import { CalendarEventInput } from '../../src/types';
+import { DashboardSummary } from '../../src/components/dashboard/DashboardSummary';
 import {
   addMonths,
   subMonths,
@@ -39,12 +47,37 @@ export default function CalendarScreen() {
     setCurrentMonth,
     setViewType,
   } = useUIStore();
+  const weatherSettings = useAuthStore((s) => s.settings.weather);
   const { events: firestoreEvents } = useEvents(uid, currentMonth);
   const { timetables } = useTimetables();
-  const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth);
+  const { exams: examSchedules } = useExamSchedules();
+  const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth, examSchedules);
+  const { weather, isLoading: weatherLoading, error: weatherError, refresh: weatherRefresh } = useWeather(weatherSettings);
+  const { calendars, selectedCalendarIds } = useCalendars();
+  const notifSettings = useAuthStore((s) => s.settings.notifications);
+  const [showQuickSheet, setShowQuickSheet] = useState(false);
+
+  const handleQuickEventSubmit = useCallback(
+    async (calendarId: string, event: CalendarEventInput) => {
+      const eventId = await addEvent(calendarId, event);
+      if (notifSettings?.enabled) {
+        await scheduleEventReminder(
+          { ...event, id: eventId, calendarId, members: [], createdAt: null as any },
+          notifSettings.reminderMinutes,
+          notifSettings
+        );
+      }
+    },
+    [notifSettings]
+  );
 
   const handleEventPress = (event: CalendarEvent) => {
     if (event.id.startsWith('timetable_')) return;
+    if (event.id.startsWith('exam_')) {
+      const examId = event.id.split('_')[1];
+      router.push(`/exam/${examId}`);
+      return;
+    }
     router.push(`/event/${event.id}?calendarId=${event.calendarId}`);
   };
 
@@ -172,15 +205,39 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      <DashboardSummary
+        uid={uid}
+        events={mergedEvents}
+        selectedDate={selectedDate}
+      />
+      <WeatherCard
+        weather={weather}
+        isLoading={weatherLoading}
+        error={weatherError}
+        settings={weatherSettings}
+        onRefresh={weatherRefresh}
+      />
       <QuickInputBar onParsed={handleQuickInput} />
       <ViewSwitcher current={viewType} onChange={setViewType} />
       <View style={styles.content}>{renderView()}</View>
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push(`/event/new?date=${selectedDate}`)}
+        onPress={() => setShowQuickSheet(true)}
+        onLongPress={() => router.push(`/event/new?date=${selectedDate}`)}
+        activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+      {uid && calendars.length > 0 && (
+        <QuickEventSheet
+          visible={showQuickSheet}
+          onClose={() => setShowQuickSheet(false)}
+          onSubmit={handleQuickEventSubmit}
+          calendarId={selectedCalendarIds[0] || calendars[0].id}
+          uid={uid}
+          initialDate={selectedDate}
+        />
+      )}
     </View>
   );
 }

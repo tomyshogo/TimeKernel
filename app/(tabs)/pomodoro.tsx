@@ -5,9 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Svg, { Circle } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -20,6 +27,14 @@ import {
   DEFAULT_POMODORO_SETTINGS,
 } from '../../src/types';
 import { Timestamp } from 'firebase/firestore';
+import { toast } from '../../src/components/ui/Toast';
+import { useStreak } from '../../src/hooks/useStreak';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const TIMER_SIZE = Math.min(Dimensions.get('window').width - 64, 260);
+const STROKE_WIDTH = 10;
+const RADIUS = (TIMER_SIZE - STROKE_WIDTH) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const PHASE_COLORS: Record<PomodoroPhase, string> = {
   work: '#e74c3c',
@@ -38,6 +53,7 @@ export default function PomodoroScreen() {
   const uid = useAuthStore((s) => s.uid);
 
   const settings = DEFAULT_POMODORO_SETTINGS;
+  const streak = useStreak(uid);
   const [phase, setPhase] = useState<PomodoroPhase>('work');
   const [secondsLeft, setSecondsLeft] = useState(settings.workMinutes * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -48,6 +64,8 @@ export default function PomodoroScreen() {
   const [selectedTimetableId, setSelectedTimetableId] = useState('');
   const startTimeRef = useRef<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [completedCycles, setCompletedCycles] = useState(0);
+  const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
 
   useEffect(() => {
     if (!uid) return;
@@ -119,7 +137,7 @@ export default function PomodoroScreen() {
             completedAt: Timestamp.now(),
           });
         } catch {
-          Alert.alert('エラー', '勉強記録の保存に失敗しました');
+          toast.error('勉強記録の保存に失敗しました');
         }
       }
 
@@ -132,7 +150,9 @@ export default function PomodoroScreen() {
         setPhase('shortBreak');
         setSecondsLeft(getDuration('shortBreak'));
       }
-      Alert.alert('集中タイム終了', '休憩しましょう');
+      setCompletedCycles((c) => c + 1);
+      setTotalStudyMinutes((m) => m + settings.workMinutes);
+      toast.info('集中タイム終了！休憩しましょう');
     } else {
       // 休憩終了
       if (phase === 'shortBreak') {
@@ -140,13 +160,13 @@ export default function PomodoroScreen() {
       }
       setPhase('work');
       setSecondsLeft(getDuration('work'));
-      Alert.alert('休憩終了', '集中タイムを始めましょう');
+      toast.info('休憩終了！集中タイムを始めましょう');
     }
   };
 
   const handleStart = () => {
     if (!selectedSubject) {
-      Alert.alert('科目を選択', '勉強する科目を選択してください');
+      toast.error('勉強する科目を選択してください');
       return;
     }
     startTimeRef.current = new Date();
@@ -163,6 +183,8 @@ export default function PomodoroScreen() {
     setSecondsLeft(getDuration('work'));
     setCycle(1);
     startTimeRef.current = null;
+    setCompletedCycles(0);
+    setTotalStudyMinutes(0);
   };
 
   const formatTime = (s: number) => {
@@ -174,31 +196,84 @@ export default function PomodoroScreen() {
   const totalSeconds = getDuration(phase);
   const progress = 1 - secondsLeft / totalSeconds;
 
+  // 円形プログレスアニメーション
+  const animatedProgress = useSharedValue(0);
+  useEffect(() => {
+    animatedProgress.value = withTiming(progress, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - animatedProgress.value),
+  }));
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* タイマー表示 */}
-      <View style={[styles.timerContainer, { borderColor: PHASE_COLORS[phase] }]}>
-        <Text style={[styles.phaseLabel, { color: PHASE_COLORS[phase] }]}>
-          {PHASE_LABELS[phase]}
-        </Text>
-        <Text style={styles.timer}>{formatTime(secondsLeft)}</Text>
-        <Text style={styles.cycleLabel}>
-          サイクル {cycle} / {settings.cyclesBeforeLongBreak}
-        </Text>
-
-        {/* プログレスバー */}
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${progress * 100}%`,
-                backgroundColor: PHASE_COLORS[phase],
-              },
-            ]}
-          />
+      {/* 円形タイマー */}
+      <View style={styles.timerContainer}>
+        <View style={styles.circularTimer}>
+          <Svg width={TIMER_SIZE} height={TIMER_SIZE}>
+            {/* 背景リング */}
+            <Circle
+              cx={TIMER_SIZE / 2}
+              cy={TIMER_SIZE / 2}
+              r={RADIUS}
+              stroke="#ecf0f1"
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+            />
+            {/* プログレスリング */}
+            <AnimatedCircle
+              cx={TIMER_SIZE / 2}
+              cy={TIMER_SIZE / 2}
+              r={RADIUS}
+              stroke={PHASE_COLORS[phase]}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              animatedProps={animatedProps}
+              strokeLinecap="round"
+              rotation="-90"
+              origin={`${TIMER_SIZE / 2}, ${TIMER_SIZE / 2}`}
+            />
+          </Svg>
+          {/* 中央テキスト */}
+          <View style={styles.timerTextOverlay}>
+            <Text style={[styles.phaseLabel, { color: PHASE_COLORS[phase] }]}>
+              {PHASE_LABELS[phase]}
+            </Text>
+            <Text style={styles.timer}>{formatTime(secondsLeft)}</Text>
+            <Text style={styles.cycleLabel}>
+              {cycle} / {settings.cyclesBeforeLongBreak}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* ストリーク表示 */}
+      {!streak.loading && (
+        <View style={styles.streakContainer}>
+          <View style={[styles.streakBadge, streak.todayCompleted && styles.streakBadgeActive]}>
+            <Text style={styles.streakFire}>{streak.todayCompleted ? '🔥' : '💤'}</Text>
+            <Text style={[styles.streakCount, streak.todayCompleted && styles.streakCountActive]}>
+              {streak.currentStreak}
+            </Text>
+            <Text style={styles.streakLabel}>日連続</Text>
+          </View>
+          {streak.longestStreak > streak.currentStreak && (
+            <Text style={styles.longestStreak}>
+              最長: {streak.longestStreak}日
+            </Text>
+          )}
+          {!streak.todayCompleted && streak.currentStreak > 0 && (
+            <Text style={styles.streakWarning}>
+              今日勉強してストリークを維持しよう！
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* コントロール */}
       <View style={styles.controls}>
@@ -214,6 +289,34 @@ export default function PomodoroScreen() {
           style={{ marginTop: 8 }}
         />
       </View>
+
+      {/* 一時停止中の表示 */}
+      {!isRunning && startTimeRef.current && secondsLeft > 0 && (
+        <View style={styles.pauseBanner}>
+          <Text style={styles.pauseText}>⏸ 一時停止中</Text>
+        </View>
+      )}
+
+      {/* セッションサマリー */}
+      {completedCycles > 0 && (
+        <Card>
+          <Text style={styles.sectionTitle}>今回のセッション</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{completedCycles}</Text>
+              <Text style={styles.summaryLabel}>完了サイクル</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{totalStudyMinutes}</Text>
+              <Text style={styles.summaryLabel}>集中(分)</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{selectedSubject || '-'}</Text>
+              <Text style={styles.summaryLabel}>科目</Text>
+            </View>
+          </View>
+        </Card>
+      )}
 
       {/* 科目選択 */}
       <Card>
@@ -277,40 +380,85 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 24,
     marginHorizontal: 16,
     marginVertical: 8,
     backgroundColor: '#fff',
     borderRadius: 20,
-    borderWidth: 3,
+  },
+  circularTimer: {
+    width: TIMER_SIZE,
+    height: TIMER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerTextOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   phaseLabel: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   timer: {
-    fontSize: 64,
+    fontSize: 48,
     fontWeight: '800',
     color: '#2c3e50',
     fontVariant: ['tabular-nums'],
   },
   cycleLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#95a5a6',
-    marginTop: 8,
+    marginTop: 4,
   },
-  progressBar: {
-    width: '80%',
-    height: 6,
-    backgroundColor: '#ecf0f1',
-    borderRadius: 3,
-    marginTop: 16,
-    overflow: 'hidden',
+  streakContainer: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 4,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  streakBadgeActive: {
+    backgroundColor: '#fff3e0',
+    borderWidth: 1.5,
+    borderColor: '#ff9800',
+  },
+  streakFire: {
+    fontSize: 18,
+  },
+  streakCount: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#95a5a6',
+    fontVariant: ['tabular-nums'],
+  },
+  streakCountActive: {
+    color: '#ff9800',
+  },
+  streakLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  longestStreak: {
+    fontSize: 11,
+    color: '#95a5a6',
+    marginTop: 4,
+  },
+  streakWarning: {
+    fontSize: 12,
+    color: '#e67e22',
+    fontWeight: '600',
+    marginTop: 4,
   },
   controls: {
     paddingHorizontal: 16,
@@ -342,5 +490,35 @@ const styles = StyleSheet.create({
   subjectText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  pauseBanner: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    backgroundColor: '#f39c12',
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  pauseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2c3e50',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#95a5a6',
+    marginTop: 4,
   },
 });

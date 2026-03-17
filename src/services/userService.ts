@@ -9,6 +9,7 @@ import {
 import { db } from './firebase';
 import { UserProfile, UserSettings, DEFAULT_NIGHT_SHIFT, DEFAULT_NOTIFICATION_SETTINGS } from '../types';
 import { DEFAULT_PERIODS } from '../types/timetable';
+import { DEFAULT_WEATHER_SETTINGS } from '../types/weather';
 
 const usersRef = (uid: string) => doc(db, 'users', uid);
 const settingsRef = (uid: string) => doc(db, 'users', uid, 'settings', 'general');
@@ -32,6 +33,7 @@ export async function getOrCreateUser(
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    weather: DEFAULT_WEATHER_SETTINGS,
   };
   await setDoc(settingsRef(uid), settings);
 
@@ -55,6 +57,7 @@ export async function getUserSettings(uid: string): Promise<UserSettings> {
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    weather: DEFAULT_WEATHER_SETTINGS,
   };
 }
 

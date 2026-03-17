@@ -12,6 +12,8 @@ import { TypeSelector } from './TypeSelector';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { ColorPicker } from '../ui/ColorPicker';
 import { Button } from '../ui/Button';
+import { DatePicker, TimePicker } from '../ui/DateTimePicker';
+import { toast } from '../ui/Toast';
 import { EVENT_COLORS } from '../../utils/constants';
 
 interface Props {
@@ -49,10 +51,11 @@ export function EventForm({
   );
   const [calendarId, setCalendarId] = useState(selectedCalendarId);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const handleSubmit = async () => {
     if (!title.trim() || !date || !startTime || !endTime) {
-      Alert.alert('エラー', '必須項目を入力してください');
+      toast.error('必須項目を入力してください');
       return;
     }
 
@@ -73,7 +76,7 @@ export function EventForm({
       };
       await onSubmit(calendarId, event);
     } catch {
-      Alert.alert('エラー', '保存に失敗しました。もう一度お試しください。');
+      toast.error('保存に失敗しました。もう一度お試しください');
     } finally {
       setLoading(false);
     }
@@ -90,42 +93,37 @@ export function EventForm({
         }}
       />
 
-      <Text style={styles.label}>タイトル</Text>
+      <Text style={styles.label}>タイトル <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[
+          styles.input,
+          touched.title && !title.trim() && styles.inputError,
+        ]}
         value={title}
         onChangeText={setTitle}
+        onBlur={() => setTouched((t) => ({ ...t, title: true }))}
         placeholder="予定のタイトル"
       />
+      {touched.title && !title.trim() && (
+        <Text style={styles.errorText}>タイトルを入力してください</Text>
+      )}
 
-      <Text style={styles.label}>日付 (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-        placeholder="2026-03-15"
-      />
+      <Text style={styles.label}>日付 <Text style={styles.required}>*</Text></Text>
+      <DatePicker value={date} onChange={setDate} placeholder="日付を選択" />
 
       <View style={styles.row}>
         <View style={styles.half}>
-          <Text style={styles.label}>開始時刻</Text>
-          <TextInput
-            style={styles.input}
-            value={startTime}
-            onChangeText={setStartTime}
-            placeholder="09:00"
-          />
+          <Text style={styles.label}>開始時刻 <Text style={styles.required}>*</Text></Text>
+          <TimePicker value={startTime} onChange={setStartTime} placeholder="開始" />
         </View>
         <View style={styles.half}>
-          <Text style={styles.label}>終了時刻</Text>
-          <TextInput
-            style={styles.input}
-            value={endTime}
-            onChangeText={setEndTime}
-            placeholder="10:30"
-          />
+          <Text style={styles.label}>終了時刻 <Text style={styles.required}>*</Text></Text>
+          <TimePicker value={endTime} onChange={setEndTime} placeholder="終了" />
         </View>
       </View>
+      {startTime && endTime && startTime >= endTime && (
+        <Text style={styles.errorText}>終了時刻は開始時刻より後にしてください</Text>
+      )}
 
       {type === 'shift' && (
         <>
@@ -168,6 +166,7 @@ export function EventForm({
           title={isEdit ? '更新' : '追加'}
           onPress={handleSubmit}
           loading={loading}
+          disabled={!title.trim() || !date || !startTime || !endTime || (startTime >= endTime)}
         />
         {isEdit && onDelete && (
           <Button
@@ -229,5 +228,18 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: 24,
+  },
+  required: {
+    color: '#e74c3c',
+    fontSize: 14,
+  },
+  inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

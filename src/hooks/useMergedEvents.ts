@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
-import { CalendarEvent, Timetable } from '../types';
+import { CalendarEvent, Timetable, ExamSchedule } from '../types';
 import { generateTimetableEvents } from '../utils/timetableHelpers';
 import { expandRecurringEvents } from '../utils/recurrence';
+import { generateExamCalendarEvents } from '../utils/examHelpers';
 import { useAuthStore } from '../stores/authStore';
 
 export function useMergedEvents(
   firestoreEvents: CalendarEvent[],
   timetables: Timetable[],
-  month: Date
+  month: Date,
+  examSchedules: ExamSchedule[] = []
 ) {
   const uid = useAuthStore((s) => s.uid);
   const periods = useAuthStore((s) => s.settings.periods);
@@ -28,11 +30,14 @@ export function useMergedEvents(
       )
     );
 
-    return [...expandedEvents, ...timetableEvents].sort((a, b) => {
+    // 資格試験イベントを生成
+    const examEvents = generateExamCalendarEvents(examSchedules, uid);
+
+    return [...expandedEvents, ...timetableEvents, ...examEvents].sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.startTime.localeCompare(b.startTime);
     });
-  }, [firestoreEvents, timetables, month, uid, periods]);
+  }, [firestoreEvents, timetables, month, uid, periods, examSchedules]);
 
   return mergedEvents;
 }

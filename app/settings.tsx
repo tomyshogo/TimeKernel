@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../src/components/ui/Button';
@@ -15,7 +14,10 @@ import { Card } from '../src/components/ui/Card';
 import { useAuthStore } from '../src/stores/authStore';
 import { updateUserName, updateUserSettings } from '../src/services/userService';
 import { sendEmailLink } from '../src/services/auth';
-import { Period, NightShiftSettings } from '../src/types';
+import { Period, NightShiftSettings, WeatherSettings } from '../src/types';
+import { clearWeatherCache } from '../src/services/weatherService';
+import { scheduleWeatherNotification } from '../src/services/weatherNotificationService';
+import { toast } from '../src/components/ui/Toast';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,15 +31,16 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState('');
   const [periods, setPeriods] = useState(settings.periods);
   const [nightShift, setNightShift] = useState(settings.nightShift);
+  const [weather, setWeather] = useState<WeatherSettings>(settings.weather);
 
   const handleSaveName = async () => {
     if (!uid || !name.trim()) return;
     try {
       await updateUserName(uid, name.trim());
       setProfile({ ...profile!, name: name.trim() });
-      Alert.alert('保存しました');
+      toast.success('名前を保存しました');
     } catch {
-      Alert.alert('エラー', '名前の保存に失敗しました');
+      toast.error('名前の保存に失敗しました');
     }
   };
 
@@ -45,9 +48,9 @@ export default function SettingsScreen() {
     if (!email.trim()) return;
     try {
       await sendEmailLink(email.trim());
-      Alert.alert('メールを送信しました', 'メール内のリンクをタップしてください');
+      toast.success('認証メールを送信しました');
     } catch {
-      Alert.alert('エラー', 'メール送信に失敗しました');
+      toast.error('メール送信に失敗しました');
     }
   };
 
@@ -57,9 +60,9 @@ export default function SettingsScreen() {
       const newSettings = { ...settings, periods };
       await updateUserSettings(uid, { periods });
       setSettings(newSettings);
-      Alert.alert('時限設定を保存しました');
+      toast.success('時限設定を保存しました');
     } catch {
-      Alert.alert('エラー', '時限設定の保存に失敗しました');
+      toast.error('時限設定の保存に失敗しました');
     }
   };
 
@@ -69,9 +72,23 @@ export default function SettingsScreen() {
       const newSettings = { ...settings, nightShift };
       await updateUserSettings(uid, { nightShift });
       setSettings(newSettings);
-      Alert.alert('深夜割増設定を保存しました');
+      toast.success('深夜割増設定を保存しました');
     } catch {
-      Alert.alert('エラー', '深夜割増設定の保存に失敗しました');
+      toast.error('深夜割増設定の保存に失敗しました');
+    }
+  };
+
+  const handleSaveWeather = async () => {
+    if (!uid) return;
+    try {
+      const newSettings = { ...settings, weather };
+      await updateUserSettings(uid, { weather });
+      setSettings(newSettings);
+      await clearWeatherCache();
+      await scheduleWeatherNotification(weather);
+      toast.success('天気設定を保存しました');
+    } catch {
+      toast.error('天気設定の保存に失敗しました');
     }
   };
 
@@ -165,11 +182,83 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>天気・服装提案</Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.label}>天気表示</Text>
+          <Switch
+            value={weather.enabled}
+            onValueChange={(enabled) => setWeather({ ...weather, enabled })}
+          />
+        </View>
+        {weather.enabled && (
+          <>
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>位置情報を自動取得</Text>
+              <Switch
+                value={weather.autoLocation}
+                onValueChange={(autoLocation) =>
+                  setWeather({ ...weather, autoLocation })
+                }
+              />
+            </View>
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>朝の天気通知</Text>
+              <Switch
+                value={weather.morningNotification}
+                onValueChange={(morningNotification) =>
+                  setWeather({ ...weather, morningNotification })
+                }
+              />
+            </View>
+            {weather.morningNotification && (
+              <>
+                <Text style={styles.label}>通知時刻</Text>
+                <TextInput
+                  style={styles.input}
+                  value={weather.morningNotificationTime}
+                  onChangeText={(morningNotificationTime) =>
+                    setWeather({ ...weather, morningNotificationTime })
+                  }
+                  placeholder="07:00"
+                />
+              </>
+            )}
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>華氏表示</Text>
+              <Switch
+                value={weather.unit === 'fahrenheit'}
+                onValueChange={(isFahrenheit) =>
+                  setWeather({
+                    ...weather,
+                    unit: isFahrenheit ? 'fahrenheit' : 'celsius',
+                  })
+                }
+              />
+            </View>
+          </>
+        )}
+        <Button
+          title="天気設定を保存"
+          onPress={handleSaveWeather}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>通知設定</Text>
         <Button
           title="通知・リマインダー設定"
           variant="secondary"
           onPress={() => router.push('/notification-settings')}
+        />
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>資格試験カレンダー</Text>
+        <Button
+          title="資格試験の購読設定"
+          variant="secondary"
+          onPress={() => router.push('/exam')}
         />
       </Card>
 
