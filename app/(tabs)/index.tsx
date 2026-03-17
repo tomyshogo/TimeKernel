@@ -23,6 +23,7 @@ import { useCalendars } from '../../src/hooks/useCalendars';
 import { QuickEventSheet } from '../../src/components/event/QuickEventSheet';
 import { scheduleEventReminder } from '../../src/services/notificationService';
 import { CalendarEventInput } from '../../src/types';
+import { DashboardSummary } from '../../src/components/dashboard/DashboardSummary';
 import {
   addMonths,
   subMonths,
@@ -204,6 +205,11 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      <DashboardSummary
+        uid={uid}
+        events={mergedEvents}
+        selectedDate={selectedDate}
+      />
       <WeatherCard
         weather={weather}
         isLoading={weatherLoading}
