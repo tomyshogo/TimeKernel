@@ -16,15 +16,14 @@ interface Props {
   onPress: () => void;
 }
 
-const MAX_DOTS = 4;
+const MAX_CHIPS = 2;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function DayCell({ date, currentMonth, isSelected, events, onPress }: Props) {
   const today = isToday(date);
   const inMonth = isSameMonth(date, currentMonth);
-  const uniqueColors = [...new Set(events.map((e) => e.color))];
-  const visibleColors = uniqueColors.slice(0, MAX_DOTS);
-  const overflow = events.length > MAX_DOTS ? events.length - MAX_DOTS : 0;
+  const visibleEvents = events.slice(0, MAX_CHIPS);
+  const overflow = events.length > MAX_CHIPS ? events.length - MAX_CHIPS : 0;
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -54,19 +53,30 @@ export function DayCell({ date, currentMonth, isSelected, events, onPress }: Pro
           {date.getDate()}
         </Text>
       </View>
-      <View style={styles.dots}>
-        {visibleColors.map((color, i) => (
+      <View style={styles.chipArea}>
+        {visibleEvents.map((event, i) => (
           <View
             key={i}
             style={[
-              styles.dot,
-              { backgroundColor: isSelected ? '#ffffffCC' : color },
+              styles.chip,
+              { backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : event.color + '22' },
+              { borderLeftColor: isSelected ? '#ffffffCC' : event.color },
             ]}
-          />
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: isSelected ? '#fff' : event.color },
+              ]}
+              numberOfLines={1}
+            >
+              {event.title}
+            </Text>
+          </View>
         ))}
         {overflow > 0 && (
           <Text style={[styles.overflowText, isSelected && styles.selectedOverflow]}>
-            +{overflow}
+            +{overflow}件
           </Text>
         )}
       </View>
@@ -78,13 +88,13 @@ const styles = StyleSheet.create({
   cell: {
     width: '14.28%',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
+    minHeight: 62,
   },
   dayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -102,7 +112,7 @@ const styles = StyleSheet.create({
     borderColor: '#3498db',
   },
   dayText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#2c3e50',
   },
@@ -117,22 +127,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
   },
-  dots: {
-    flexDirection: 'row',
-    gap: 3,
-    marginTop: 3,
-    height: 6,
-    alignItems: 'center',
+  chipArea: {
+    width: '100%',
+    paddingHorizontal: 1,
+    marginTop: 1,
+    gap: 1,
   },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+  chip: {
+    borderLeftWidth: 2,
+    borderRadius: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 0.5,
+  },
+  chipText: {
+    fontSize: 8,
+    fontWeight: '600',
+    lineHeight: 10,
   },
   overflowText: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '800',
     color: '#95a5a6',
+    textAlign: 'center',
   },
   selectedOverflow: {
     color: '#ffffffCC',

@@ -5,8 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Svg, { Circle } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -20,6 +28,13 @@ import {
 } from '../../src/types';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from '../../src/components/ui/Toast';
+import { useStreak } from '../../src/hooks/useStreak';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const TIMER_SIZE = Math.min(Dimensions.get('window').width - 64, 260);
+const STROKE_WIDTH = 10;
+const RADIUS = (TIMER_SIZE - STROKE_WIDTH) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const PHASE_COLORS: Record<PomodoroPhase, string> = {
   work: '#e74c3c',
@@ -38,6 +53,7 @@ export default function PomodoroScreen() {
   const uid = useAuthStore((s) => s.uid);
 
   const settings = DEFAULT_POMODORO_SETTINGS;
+  const streak = useStreak(uid);
   const [phase, setPhase] = useState<PomodoroPhase>('work');
   const [secondsLeft, setSecondsLeft] = useState(settings.workMinutes * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -180,31 +196,84 @@ export default function PomodoroScreen() {
   const totalSeconds = getDuration(phase);
   const progress = 1 - secondsLeft / totalSeconds;
 
+  // 円形プログレスアニメーション
+  const animatedProgress = useSharedValue(0);
+  useEffect(() => {
+    animatedProgress.value = withTiming(progress, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - animatedProgress.value),
+  }));
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* タイマー表示 */}
-      <View style={[styles.timerContainer, { borderColor: PHASE_COLORS[phase] }]}>
-        <Text style={[styles.phaseLabel, { color: PHASE_COLORS[phase] }]}>
-          {PHASE_LABELS[phase]}
-        </Text>
-        <Text style={styles.timer}>{formatTime(secondsLeft)}</Text>
-        <Text style={styles.cycleLabel}>
-          サイクル {cycle} / {settings.cyclesBeforeLongBreak}
-        </Text>
-
-        {/* プログレスバー */}
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${progress * 100}%`,
-                backgroundColor: PHASE_COLORS[phase],
-              },
-            ]}
-          />
+      {/* 円形タイマー */}
+      <View style={styles.timerContainer}>
+        <View style={styles.circularTimer}>
+          <Svg width={TIMER_SIZE} height={TIMER_SIZE}>
+            {/* 背景リング */}
+            <Circle
+              cx={TIMER_SIZE / 2}
+              cy={TIMER_SIZE / 2}
+              r={RADIUS}
+              stroke="#ecf0f1"
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+            />
+            {/* プログレスリング */}
+            <AnimatedCircle
+              cx={TIMER_SIZE / 2}
+              cy={TIMER_SIZE / 2}
+              r={RADIUS}
+              stroke={PHASE_COLORS[phase]}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              animatedProps={animatedProps}
+              strokeLinecap="round"
+              rotation="-90"
+              origin={`${TIMER_SIZE / 2}, ${TIMER_SIZE / 2}`}
+            />
+          </Svg>
+          {/* 中央テキスト */}
+          <View style={styles.timerTextOverlay}>
+            <Text style={[styles.phaseLabel, { color: PHASE_COLORS[phase] }]}>
+              {PHASE_LABELS[phase]}
+            </Text>
+            <Text style={styles.timer}>{formatTime(secondsLeft)}</Text>
+            <Text style={styles.cycleLabel}>
+              {cycle} / {settings.cyclesBeforeLongBreak}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* ストリーク表示 */}
+      {!streak.loading && (
+        <View style={styles.streakContainer}>
+          <View style={[styles.streakBadge, streak.todayCompleted && styles.streakBadgeActive]}>
+            <Text style={styles.streakFire}>{streak.todayCompleted ? '🔥' : '💤'}</Text>
+            <Text style={[styles.streakCount, streak.todayCompleted && styles.streakCountActive]}>
+              {streak.currentStreak}
+            </Text>
+            <Text style={styles.streakLabel}>日連続</Text>
+          </View>
+          {streak.longestStreak > streak.currentStreak && (
+            <Text style={styles.longestStreak}>
+              最長: {streak.longestStreak}日
+            </Text>
+          )}
+          {!streak.todayCompleted && streak.currentStreak > 0 && (
+            <Text style={styles.streakWarning}>
+              今日勉強してストリークを維持しよう！
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* コントロール */}
       <View style={styles.controls}>
@@ -311,40 +380,85 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 24,
     marginHorizontal: 16,
     marginVertical: 8,
     backgroundColor: '#fff',
     borderRadius: 20,
-    borderWidth: 3,
+  },
+  circularTimer: {
+    width: TIMER_SIZE,
+    height: TIMER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerTextOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   phaseLabel: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   timer: {
-    fontSize: 64,
+    fontSize: 48,
     fontWeight: '800',
     color: '#2c3e50',
     fontVariant: ['tabular-nums'],
   },
   cycleLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#95a5a6',
-    marginTop: 8,
+    marginTop: 4,
   },
-  progressBar: {
-    width: '80%',
-    height: 6,
-    backgroundColor: '#ecf0f1',
-    borderRadius: 3,
-    marginTop: 16,
-    overflow: 'hidden',
+  streakContainer: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 4,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  streakBadgeActive: {
+    backgroundColor: '#fff3e0',
+    borderWidth: 1.5,
+    borderColor: '#ff9800',
+  },
+  streakFire: {
+    fontSize: 18,
+  },
+  streakCount: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#95a5a6',
+    fontVariant: ['tabular-nums'],
+  },
+  streakCountActive: {
+    color: '#ff9800',
+  },
+  streakLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  longestStreak: {
+    fontSize: 11,
+    color: '#95a5a6',
+    marginTop: 4,
+  },
+  streakWarning: {
+    fontSize: 12,
+    color: '#e67e22',
+    fontWeight: '600',
+    marginTop: 4,
   },
   controls: {
     paddingHorizontal: 16,
