@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../src/components/ui/Button';
@@ -18,6 +17,7 @@ import { sendEmailLink } from '../src/services/auth';
 import { Period, NightShiftSettings, WeatherSettings } from '../src/types';
 import { clearWeatherCache } from '../src/services/weatherService';
 import { scheduleWeatherNotification } from '../src/services/weatherNotificationService';
+import { toast } from '../src/components/ui/Toast';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -38,9 +38,9 @@ export default function SettingsScreen() {
     try {
       await updateUserName(uid, name.trim());
       setProfile({ ...profile!, name: name.trim() });
-      Alert.alert('保存しました');
+      toast.success('名前を保存しました');
     } catch {
-      Alert.alert('エラー', '名前の保存に失敗しました');
+      toast.error('名前の保存に失敗しました');
     }
   };
 
@@ -48,9 +48,9 @@ export default function SettingsScreen() {
     if (!email.trim()) return;
     try {
       await sendEmailLink(email.trim());
-      Alert.alert('メールを送信しました', 'メール内のリンクをタップしてください');
+      toast.success('認証メールを送信しました');
     } catch {
-      Alert.alert('エラー', 'メール送信に失敗しました');
+      toast.error('メール送信に失敗しました');
     }
   };
 
@@ -60,9 +60,9 @@ export default function SettingsScreen() {
       const newSettings = { ...settings, periods };
       await updateUserSettings(uid, { periods });
       setSettings(newSettings);
-      Alert.alert('時限設定を保存しました');
+      toast.success('時限設定を保存しました');
     } catch {
-      Alert.alert('エラー', '時限設定の保存に失敗しました');
+      toast.error('時限設定の保存に失敗しました');
     }
   };
 
@@ -72,9 +72,9 @@ export default function SettingsScreen() {
       const newSettings = { ...settings, nightShift };
       await updateUserSettings(uid, { nightShift });
       setSettings(newSettings);
-      Alert.alert('深夜割増設定を保存しました');
+      toast.success('深夜割増設定を保存しました');
     } catch {
-      Alert.alert('エラー', '深夜割増設定の保存に失敗しました');
+      toast.error('深夜割増設定の保存に失敗しました');
     }
   };
 
@@ -86,9 +86,9 @@ export default function SettingsScreen() {
       setSettings(newSettings);
       await clearWeatherCache();
       await scheduleWeatherNotification(weather);
-      Alert.alert('天気設定を保存しました');
+      toast.success('天気設定を保存しました');
     } catch {
-      Alert.alert('エラー', '天気設定の保存に失敗しました');
+      toast.error('天気設定の保存に失敗しました');
     }
   };
 

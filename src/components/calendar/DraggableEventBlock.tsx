@@ -116,14 +116,28 @@ export function DraggableEventBlock({
           animatedStyle,
         ]}
       >
-        <Text style={styles.eventTitle} numberOfLines={1}>
-          {event.title}
-        </Text>
-        {height > 28 && (
-          <Text style={styles.eventTime}>
-            {event.startTime}-{event.endTime}
-          </Text>
-        )}
+        <View style={styles.eventContent}>
+          <View style={styles.eventTextArea}>
+            <Text style={styles.eventTitle} numberOfLines={1}>
+              {event.title}
+            </Text>
+            {height > 28 && (
+              <Text style={styles.eventTime}>
+                {event.startTime}-{event.endTime}
+              </Text>
+            )}
+          </View>
+          {height > 24 && (
+            <View style={styles.dragHandle}>
+              <View style={styles.dragDot} />
+              <View style={styles.dragDot} />
+              <View style={styles.dragDot} />
+              <View style={styles.dragDot} />
+              <View style={styles.dragDot} />
+              <View style={styles.dragDot} />
+            </View>
+          )}
+        </View>
       </Animated.View>
     </GestureDetector>
   );
@@ -140,6 +154,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  eventContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventTextArea: {
+    flex: 1,
+  },
   eventTitle: {
     fontSize: 12,
     fontWeight: '600',
@@ -148,5 +170,20 @@ const styles = StyleSheet.create({
   eventTime: {
     fontSize: 10,
     color: '#ffffffCC',
+  },
+  dragHandle: {
+    width: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  dragDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
 });

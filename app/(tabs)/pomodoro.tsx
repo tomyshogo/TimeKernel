@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
@@ -20,6 +19,7 @@ import {
   DEFAULT_POMODORO_SETTINGS,
 } from '../../src/types';
 import { Timestamp } from 'firebase/firestore';
+import { toast } from '../../src/components/ui/Toast';
 
 const PHASE_COLORS: Record<PomodoroPhase, string> = {
   work: '#e74c3c',
@@ -48,6 +48,8 @@ export default function PomodoroScreen() {
   const [selectedTimetableId, setSelectedTimetableId] = useState('');
   const startTimeRef = useRef<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [completedCycles, setCompletedCycles] = useState(0);
+  const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
 
   useEffect(() => {
     if (!uid) return;
@@ -119,7 +121,7 @@ export default function PomodoroScreen() {
             completedAt: Timestamp.now(),
           });
         } catch {
-          Alert.alert('エラー', '勉強記録の保存に失敗しました');
+          toast.error('勉強記録の保存に失敗しました');
         }
       }
 
@@ -132,7 +134,9 @@ export default function PomodoroScreen() {
         setPhase('shortBreak');
         setSecondsLeft(getDuration('shortBreak'));
       }
-      Alert.alert('集中タイム終了', '休憩しましょう');
+      setCompletedCycles((c) => c + 1);
+      setTotalStudyMinutes((m) => m + settings.workMinutes);
+      toast.info('集中タイム終了！休憩しましょう');
     } else {
       // 休憩終了
       if (phase === 'shortBreak') {
@@ -140,13 +144,13 @@ export default function PomodoroScreen() {
       }
       setPhase('work');
       setSecondsLeft(getDuration('work'));
-      Alert.alert('休憩終了', '集中タイムを始めましょう');
+      toast.info('休憩終了！集中タイムを始めましょう');
     }
   };
 
   const handleStart = () => {
     if (!selectedSubject) {
-      Alert.alert('科目を選択', '勉強する科目を選択してください');
+      toast.error('勉強する科目を選択してください');
       return;
     }
     startTimeRef.current = new Date();
@@ -163,6 +167,8 @@ export default function PomodoroScreen() {
     setSecondsLeft(getDuration('work'));
     setCycle(1);
     startTimeRef.current = null;
+    setCompletedCycles(0);
+    setTotalStudyMinutes(0);
   };
 
   const formatTime = (s: number) => {
@@ -214,6 +220,34 @@ export default function PomodoroScreen() {
           style={{ marginTop: 8 }}
         />
       </View>
+
+      {/* 一時停止中の表示 */}
+      {!isRunning && startTimeRef.current && secondsLeft > 0 && (
+        <View style={styles.pauseBanner}>
+          <Text style={styles.pauseText}>⏸ 一時停止中</Text>
+        </View>
+      )}
+
+      {/* セッションサマリー */}
+      {completedCycles > 0 && (
+        <Card>
+          <Text style={styles.sectionTitle}>今回のセッション</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{completedCycles}</Text>
+              <Text style={styles.summaryLabel}>完了サイクル</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{totalStudyMinutes}</Text>
+              <Text style={styles.summaryLabel}>集中(分)</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{selectedSubject || '-'}</Text>
+              <Text style={styles.summaryLabel}>科目</Text>
+            </View>
+          </View>
+        </Card>
+      )}
 
       {/* 科目選択 */}
       <Card>
@@ -342,5 +376,35 @@ const styles = StyleSheet.create({
   subjectText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  pauseBanner: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    backgroundColor: '#f39c12',
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  pauseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2c3e50',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#95a5a6',
+    marginTop: 4,
   },
 });

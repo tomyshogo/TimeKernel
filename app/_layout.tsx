@@ -5,6 +5,8 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../src/hooks/useAuth';
 import { useNotifications } from '../src/hooks/useNotifications';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
+import { ToastContainer } from '../src/components/ui/Toast';
+import { CelebrationOverlay } from '../src/components/ui/CelebrationOverlay';
 import AuthScreen from './auth';
 import OnboardingScreen from './onboarding';
 
@@ -31,6 +33,8 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NetworkBanner />
+      <ToastContainer />
+      <CelebrationOverlay />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#fff' },

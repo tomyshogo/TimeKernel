@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
@@ -19,6 +18,12 @@ import {
   TASK_STATUS_LABELS,
   TASK_STATUS_COLORS,
 } from '../../src/types';
+import { TaskListSkeleton } from '../../src/components/ui/Skeleton';
+import { SwipeableRow } from '../../src/components/ui/SwipeableRow';
+import { deleteTask } from '../../src/services/taskService';
+import { toast } from '../../src/components/ui/Toast';
+import { celebrate } from '../../src/components/ui/CelebrationOverlay';
+import * as Haptics from 'expo-haptics';
 
 type FilterStatus = 'all' | TaskStatus;
 
@@ -49,6 +54,11 @@ export default function TasksScreen() {
           ? 'done'
           : 'todo';
     await updateTaskStatus(uid, task.id, nextStatus);
+    if (nextStatus === 'done') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      celebrate();
+      toast.success('課題を完了しました！');
+    }
   };
 
   const getDeadlineText = (deadline: any) => {
@@ -76,8 +86,8 @@ export default function TasksScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3498db" />
+      <View style={styles.container}>
+        <TaskListSkeleton count={4} />
       </View>
     );
   }
@@ -116,51 +126,82 @@ export default function TasksScreen() {
           </Card>
         ) : (
           filteredTasks.map((task) => (
-            <Card key={task.id}>
-              <TouchableOpacity
-                onPress={() => router.push(`/task/${task.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.taskHeader}>
-                  <View style={styles.taskTitleRow}>
-                    <TouchableOpacity
-                      onPress={() => handleStatusToggle(task)}
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: TASK_STATUS_COLORS[task.status] },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.taskTitle,
-                        task.status === 'done' && styles.taskTitleDone,
-                      ]}
-                    >
-                      {task.title}
+            <SwipeableRow
+              key={task.id}
+              leftAction={
+                task.status !== 'done'
+                  ? {
+                      label: '完了',
+                      color: '#2ecc71',
+                      onPress: () => {
+                        if (uid) {
+                          updateTaskStatus(uid, task.id, 'done');
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          celebrate();
+                          toast.success('課題を完了しました！');
+                        }
+                      },
+                    }
+                  : undefined
+              }
+              rightAction={{
+                label: '削除',
+                color: '#e74c3c',
+                onPress: () => {
+                  if (uid) {
+                    deleteTask(uid, task.id).then(() =>
+                      toast.success('課題を削除しました')
+                    );
+                  }
+                },
+              }}
+            >
+              <Card>
+                <TouchableOpacity
+                  onPress={() => router.push(`/task/${task.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.taskHeader}>
+                    <View style={styles.taskTitleRow}>
+                      <TouchableOpacity
+                        onPress={() => handleStatusToggle(task)}
+                        style={[
+                          styles.statusDot,
+                          { backgroundColor: TASK_STATUS_COLORS[task.status] },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.taskTitle,
+                          task.status === 'done' && styles.taskTitleDone,
+                        ]}
+                      >
+                        {task.title}
+                      </Text>
+                    </View>
+                    <Text style={styles.taskType}>
+                      {TASK_TYPE_LABELS[task.type]}
                     </Text>
                   </View>
-                  <Text style={styles.taskType}>
-                    {TASK_TYPE_LABELS[task.type]}
-                  </Text>
-                </View>
 
-                <View style={styles.taskMeta}>
-                  <Text style={styles.subjectLabel}>{task.subject}</Text>
-                  <Text
-                    style={[
-                      styles.deadlineText,
-                      { color: getDeadlineColor(task.deadline) },
-                    ]}
-                  >
-                    {getDeadlineText(task.deadline)}
-                  </Text>
-                </View>
+                  <View style={styles.taskMeta}>
+                    <Text style={styles.subjectLabel}>{task.subject}</Text>
+                    <Text
+                      style={[
+                        styles.deadlineText,
+                        { color: getDeadlineColor(task.deadline) },
+                      ]}
+                    >
+                      {getDeadlineText(task.deadline)}
+                    </Text>
+                  </View>
 
-                <Text style={styles.statusLabel}>
-                  {TASK_STATUS_LABELS[task.status]}
-                </Text>
-              </TouchableOpacity>
-            </Card>
+                  <Text style={styles.statusLabel}>
+                    {TASK_STATUS_LABELS[task.status]}
+                  </Text>
+                </TouchableOpacity>
+              </Card>
+            </SwipeableRow>
           ))
         )}
       </ScrollView>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { CalendarEvent } from '../../types';
 import { EventCard } from '../event/EventCard';
 import { formatDisplayDate, parseDate } from '../../utils/dateHelpers';
@@ -11,13 +12,24 @@ interface Props {
 }
 
 export function DayDetail({ date, events, onEventPress }: Props) {
+  const router = useRouter();
   const dayEvents = events.filter((e) => e.date === date);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{formatDisplayDate(parseDate(date))}</Text>
       {dayEvents.length === 0 ? (
-        <Text style={styles.empty}>予定なし</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>📅</Text>
+          <Text style={styles.emptyText}>予定はありません</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push(`/event/new?date=${date}`)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.addButtonText}>+ 予定を追加</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={dayEvents}
@@ -42,9 +54,28 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 12,
   },
-  empty: {
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  emptyText: {
     color: '#95a5a6',
-    textAlign: 'center',
-    paddingVertical: 20,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  addButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#3498db',
+    borderRadius: 20,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
