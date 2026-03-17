@@ -52,6 +52,10 @@ export function subscribeToPolls(
     query(pollsCol(calendarId), orderBy('createdAt', 'desc')),
     (snap) => {
       callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Poll)));
+    },
+    (error) => {
+      console.warn('[subscribeToPolls]', error.code, error.message);
+      callback([]);
     }
   );
 }
@@ -79,6 +83,9 @@ export function subscribeToVotes(
 ): Unsubscribe {
   return onSnapshot(votesCol(calendarId, pollId), (snap) => {
     callback(snap.docs.map((d) => d.data() as PollVote));
+  }, (error) => {
+    console.warn('[subscribeToVotes]', error.code, error.message);
+    callback([]);
   });
 }
 

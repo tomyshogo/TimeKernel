@@ -49,6 +49,10 @@ export function subscribeToGroups(
     query(groupsCol(uid), orderBy('order', 'asc')),
     (snap) => {
       callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CalendarGroup)));
+    },
+    (error) => {
+      console.warn('[subscribeToGroups]', error.code, error.message);
+      callback([]);
     }
   );
 }

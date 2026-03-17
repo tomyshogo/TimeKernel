@@ -111,6 +111,9 @@ export function subscribeToCalendar(
     } else {
       callback(null);
     }
+  }, (error) => {
+    console.warn('[subscribeToCalendar]', calendarId, error.code, error.message);
+    callback(null);
   });
 }
 

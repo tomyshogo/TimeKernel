@@ -79,5 +79,8 @@ export function subscribeToTimetables(
       (d) => ({ id: d.id, ...d.data() }) as Timetable
     );
     callback(timetables);
+  }, (error) => {
+    console.warn('[subscribeToTimetables]', error.code, error.message);
+    callback([]);
   });
 }

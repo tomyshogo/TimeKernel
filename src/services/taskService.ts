@@ -81,6 +81,10 @@ export function subscribeToTasks(
         (d) => ({ id: d.id, ...d.data() } as Task)
       );
       callback(tasks);
+    },
+    (error) => {
+      console.warn('[subscribeToTasks]', error.code, error.message);
+      callback([]);
     }
   );
 }
