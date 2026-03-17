@@ -40,9 +40,10 @@ export default function RootLayout() {
           headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#2c3e50',
           headerTitleStyle: { fontWeight: '700' },
+          headerBackTitle: '戻る',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, headerBackTitle: '' }} />
         <Stack.Screen name="settings" options={{ title: '設定' }} />
         <Stack.Screen
           name="event/new"
@@ -99,6 +100,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="poll/[id]"
           options={{ title: '投票', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="exam/index"
+          options={{ title: '試験日程' }}
+        />
+        <Stack.Screen
+          name="exam/[id]"
+          options={{ title: '試験詳細' }}
         />
         <Stack.Screen
           name="voice-assistant"
