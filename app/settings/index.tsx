@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   Pressable,
+  TouchableOpacity,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../src/stores/authStore';
 
 interface SettingsItem {
@@ -32,14 +38,14 @@ const SETTINGS_SECTIONS: { title: string; items: SettingsItem[] }[] = [
       {
         icon: 'shield-outline',
         label: 'プライバシー',
-        description: '公開範囲の設定',
+        description: '公開範囲・データ管理',
         route: '/privacy-settings',
         color: '#9b59b6',
       },
     ],
   },
   {
-    title: 'カレンダー・時間割',
+    title: 'カレンダー',
     items: [
       {
         icon: 'calendar-outline',
@@ -56,49 +62,6 @@ const SETTINGS_SECTIONS: { title: string; items: SettingsItem[] }[] = [
         color: '#2ecc71',
       },
       {
-        icon: 'time-outline',
-        label: '時限設定',
-        description: '授業の時間帯を設定',
-        route: '/settings/periods',
-        color: '#f39c12',
-      },
-    ],
-  },
-  {
-    title: '通知・天気',
-    items: [
-      {
-        icon: 'notifications-outline',
-        label: '通知・リマインダー',
-        description: 'リマインダーの設定',
-        route: '/notification-settings',
-        color: '#e67e22',
-      },
-      {
-        icon: 'cloudy-outline',
-        label: '天気・服装提案',
-        description: '天気表示と通知の設定',
-        route: '/settings/weather',
-        color: '#4facfe',
-      },
-    ],
-  },
-  {
-    title: 'バイト',
-    items: [
-      {
-        icon: 'moon-outline',
-        label: '深夜割増設定',
-        description: '割増時間・倍率',
-        route: '/settings/night-shift',
-        color: '#34495e',
-      },
-    ],
-  },
-  {
-    title: 'その他',
-    items: [
-      {
         icon: 'school-outline',
         label: '資格試験カレンダー',
         description: '試験日程の購読',
@@ -107,29 +70,123 @@ const SETTINGS_SECTIONS: { title: string; items: SettingsItem[] }[] = [
       },
     ],
   },
+  {
+    title: '学校・バイト',
+    items: [
+      {
+        icon: 'time-outline',
+        label: '時限設定',
+        description: '授業の時間帯を設定',
+        route: '/settings/periods',
+        color: '#f39c12',
+      },
+      {
+        icon: 'moon-outline',
+        label: '深夜割増設定',
+        description: 'バイトの割増時間・倍率',
+        route: '/settings/night-shift',
+        color: '#34495e',
+      },
+    ],
+  },
+  {
+    title: '通知・生活情報',
+    items: [
+      {
+        icon: 'notifications-outline',
+        label: '通知・リマインダー',
+        description: '予定のリマインダー設定',
+        route: '/notification-settings',
+        color: '#e67e22',
+      },
+      {
+        icon: 'cloudy-outline',
+        label: '天気・服装提案',
+        description: '天気表示と服装の提案',
+        route: '/settings/weather',
+        color: '#4facfe',
+      },
+      {
+        icon: 'train-outline',
+        label: '通勤・通学路線',
+        description: '遅延情報を表示する路線',
+        route: '/settings/train',
+        color: '#00a7db',
+      },
+      {
+        icon: 'school-outline',
+        label: '大学ポータル',
+        description: 'ポータルサイトへのリンク設定',
+        route: '/settings/portal',
+        color: '#8e44ad',
+      },
+      {
+        icon: 'mic-outline',
+        label: 'Alexa連携',
+        description: '音声で予定の確認・追加',
+        route: '/settings/alexa',
+        color: '#00caff',
+      },
+    ],
+  },
 ];
+
+const AVATAR_STORAGE_KEY = 'user_avatar_uri';
 
 export default function SettingsHubScreen() {
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(AVATAR_STORAGE_KEY).then((uri) => {
+      if (uri) setAvatarUri(uri);
+    });
+  }, []);
+
+  const handlePickAvatar = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setAvatarUri(uri);
+      await AsyncStorage.setItem(AVATAR_STORAGE_KEY, uri);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* プロフィールヘッダー */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile?.name?.charAt(0) || '?'}
-          </Text>
-        </View>
+      <Animated.View entering={FadeInDown.duration(300).springify()} style={styles.profileHeader}>
+        <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.7}>
+          <View style={styles.avatarContainer}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {profile?.name?.charAt(0) || '?'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.avatarBadge}>
+              <Ionicons name="camera" size={10} color="#fff" />
+            </View>
+          </View>
+        </TouchableOpacity>
         <View>
           <Text style={styles.profileName}>{profile?.name || '未設定'}</Text>
           <Text style={styles.profileSub}>設定を管理</Text>
         </View>
-      </View>
+      </Animated.View>
 
-      {SETTINGS_SECTIONS.map((section) => (
-        <View key={section.title} style={styles.section}>
+      {SETTINGS_SECTIONS.map((section, secIndex) => (
+        <Animated.View key={section.title} entering={FadeInDown.delay((secIndex + 1) * 60).duration(300).springify()} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
           <View style={styles.sectionCard}>
             {section.items.map((item, idx) => (
@@ -153,7 +210,7 @@ export default function SettingsHubScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </Animated.View>
       ))}
     </ScrollView>
   );
@@ -175,6 +232,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 8,
   },
+  avatarContainer: {
+    position: 'relative',
+  },
   avatar: {
     width: 48,
     height: 48,
@@ -183,10 +243,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
   avatarText: {
     fontSize: 20,
     fontWeight: '800',
     color: '#fff',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#7f8c8d',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   profileName: {
     fontSize: 18,

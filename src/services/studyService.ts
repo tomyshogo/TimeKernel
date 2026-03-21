@@ -42,16 +42,20 @@ export async function getStudyRecords(
 export interface StudySummary {
   totalMinutes: number;
   bySubject: Record<string, number>;
+  /** 日別の勉強時間 (date -> minutes) */
+  byDate: Record<string, number>;
 }
 
 export function summarizeStudyRecords(records: StudyRecord[]): StudySummary {
   const bySubject: Record<string, number> = {};
+  const byDate: Record<string, number> = {};
   let totalMinutes = 0;
 
   for (const r of records) {
     totalMinutes += r.durationMinutes;
     bySubject[r.subject] = (bySubject[r.subject] || 0) + r.durationMinutes;
+    byDate[r.date] = (byDate[r.date] || 0) + r.durationMinutes;
   }
 
-  return { totalMinutes, bySubject };
+  return { totalMinutes, bySubject, byDate };
 }

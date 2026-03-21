@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ExternalCalendar, ExternalEventMap } from '../types';
+import { deleteExternalEvents } from './eventService';
 
 const externalCalendarsRef = (uid: string) =>
   collection(db, 'users', uid, 'externalCalendars');
@@ -42,12 +43,29 @@ export async function updateExternalCalendar(
 
 export async function deleteExternalCalendar(
   uid: string,
-  calendarId: string
+  externalCalendarId: string,
+  userCalendarIds: string[] = []
 ): Promise<void> {
-  await deleteDoc(doc(externalCalendarsRef(uid), calendarId));
+  // 外部カレンダーの情報を取得してプロバイダーを特定
+  const cals = await getExternalCalendars(uid);
+  const targetCal = cals.find((c) => c.id === externalCalendarId);
+  const provider = targetCal?.provider;
+
+  // 外部カレンダー登録を削除
+  await deleteDoc(doc(externalCalendarsRef(uid), externalCalendarId));
+
+  if (!provider) return;
+
+  // ユーザーの全カレンダーから該当プロバイダーのインポート済みイベントを削除
+  for (const calId of userCalendarIds) {
+    try {
+      await deleteExternalEvents(calId, provider);
+    } catch {}
+  }
+
   // 関連するマッピングも削除
   const maps = await getExternalEventMaps(uid);
-  for (const m of maps.filter((m) => m.calendarId === calendarId)) {
+  for (const m of maps.filter((m) => m.provider === provider)) {
     await deleteDoc(doc(externalEventMapRef(uid), m.id));
   }
 }

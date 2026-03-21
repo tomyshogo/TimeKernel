@@ -15,6 +15,8 @@ export interface WeatherData {
   fetchedAt: string;
   /** 都市名 */
   cityName: string;
+  /** 今日の3時間ごと予報 */
+  forecast?: ForecastEntry[];
 }
 
 export interface WeatherSettings {
@@ -44,8 +46,23 @@ export const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
   unit: 'celsius',
 };
 
+export interface ForecastEntry {
+  /** 予報時刻 (ISO string) */
+  dt: string;
+  /** 気温 (℃) */
+  temp: number;
+  /** 降水確率 (0-100) */
+  pop: number;
+  /** 天気アイコン */
+  icon: string;
+  /** 天気の説明 */
+  description: string;
+}
+
 export interface ClothingSuggestion {
   message: string;
   icon: string;
   rainWarning?: string;
+  /** 提案の根拠となる時間帯 */
+  context?: string;
 }

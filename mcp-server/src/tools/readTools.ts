@@ -42,12 +42,57 @@ async function getEventsForCalendars(
   });
 }
 
+function mergeEvents(calEvents: MCPEvent[], mirrorEvents: MCPEvent[]): MCPEvent[] {
+  const seen = new Set(calEvents.map((e) => e.id));
+  const merged = [...calEvents];
+  for (const e of mirrorEvents) {
+    if (!seen.has(e.id)) merged.push(e);
+  }
+  return merged.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.startTime || '').localeCompare(b.startTime || '');
+  });
+}
+
+async function getMirrorEvents(
+  uid: string,
+  dateFilter: { field: string; op: FirebaseFirestore.WhereFilterOp; value: string }[]
+): Promise<MCPEvent[]> {
+  const events: MCPEvent[] = [];
+  try {
+    let query: FirebaseFirestore.Query = db.collection(`users/${uid}/eventMirror`);
+    for (const filter of dateFilter) {
+      query = query.where(filter.field, filter.op, filter.value);
+    }
+    const snap = await query.get();
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      events.push({
+        id: doc.id,
+        calendarId: data.calendarId || '',
+        title: data.title,
+        type: data.type,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        hourlyWage: data.hourlyWage,
+        color: data.color,
+        createdBy: data.createdBy,
+      });
+    }
+  } catch {}
+  return events;
+}
+
 export async function getTodayEvents(uid: string): Promise<MCPEvent[]> {
   const calendarIds = await getUserCalendarIds(uid);
   const today = new Date().toISOString().split('T')[0];
-  return getEventsForCalendars(calendarIds, [
-    { field: 'date', op: '==', value: today },
+  const filter = [{ field: 'date', op: '==' as const, value: today }];
+  const [calEvents, mirrorEvents] = await Promise.all([
+    getEventsForCalendars(calendarIds, filter),
+    getMirrorEvents(uid, filter),
   ]);
+  return mergeEvents(calEvents, mirrorEvents);
 }
 
 export async function getEventsByDate(
@@ -55,9 +100,12 @@ export async function getEventsByDate(
   date: string
 ): Promise<MCPEvent[]> {
   const calendarIds = await getUserCalendarIds(uid);
-  return getEventsForCalendars(calendarIds, [
-    { field: 'date', op: '==', value: date },
+  const filter = [{ field: 'date', op: '==' as const, value: date }];
+  const [calEvents, mirrorEvents] = await Promise.all([
+    getEventsForCalendars(calendarIds, filter),
+    getMirrorEvents(uid, filter),
   ]);
+  return mergeEvents(calEvents, mirrorEvents);
 }
 
 export async function getEventsByRange(
@@ -66,10 +114,15 @@ export async function getEventsByRange(
   endDate: string
 ): Promise<MCPEvent[]> {
   const calendarIds = await getUserCalendarIds(uid);
-  return getEventsForCalendars(calendarIds, [
-    { field: 'date', op: '>=', value: startDate },
-    { field: 'date', op: '<=', value: endDate },
+  const filter = [
+    { field: 'date', op: '>=' as const, value: startDate },
+    { field: 'date', op: '<=' as const, value: endDate },
+  ];
+  const [calEvents, mirrorEvents] = await Promise.all([
+    getEventsForCalendars(calendarIds, filter),
+    getMirrorEvents(uid, filter),
   ]);
+  return mergeEvents(calEvents, mirrorEvents);
 }
 
 export async function getFreeSlots(

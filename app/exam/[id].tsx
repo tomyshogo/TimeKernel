@@ -1,47 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Linking,
-  ActivityIndicator,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '../../src/services/firebase';
 import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
-import { ExamSchedule, EXAM_CATEGORY_LABELS } from '../../src/types/exam';
+import { EXAM_CATEGORY_LABELS, ExamCategory } from '../../src/types/exam';
+import { EXAM_SCHEDULES } from '../../src/data/examData';
 import { getDaysUntilExam, getDaysLabel } from '../../src/utils/examHelpers';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
 export default function ExamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [exam, setExam] = useState<ExamSchedule | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      const snap = await getDoc(doc(db, 'examSchedules', id));
-      if (snap.exists()) {
-        setExam({ id: snap.id, ...snap.data() } as ExamSchedule);
-      }
-      setIsLoading(false);
-    })();
-  }, [id]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3498db" />
-      </View>
-    );
-  }
+  // exam_XXXX_date / exam_XXXX_deadline からIDを抽出
+  const examId = id?.replace(/^exam_/, '').replace(/_(date|deadline|appstart)$/, '') ?? '';
+  const exam = EXAM_SCHEDULES.find((e) => e.id === examId);
 
   if (!exam) {
     return (
@@ -57,8 +36,8 @@ export default function ExamDetailScreen() {
   const isUrgent = daysUntil <= 7 && daysUntil >= 0;
   const isOver = daysUntil < 0;
 
-  const formatTs = (ts: { toDate: () => Date }) =>
-    format(ts.toDate(), 'yyyy年M月d日(E)', { locale: ja });
+  const formatDate = (dateStr: string) =>
+    format(new Date(dateStr), 'yyyy年M月d日(E)', { locale: ja });
 
   const countdownColor = isOver ? '#95a5a6' : isUrgent ? '#e74c3c' : '#3498db';
 
@@ -69,7 +48,7 @@ export default function ExamDetailScreen() {
         <Card>
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>
-              {EXAM_CATEGORY_LABELS[exam.category]}
+              {EXAM_CATEGORY_LABELS[exam.category as ExamCategory]}
             </Text>
           </View>
           <Text style={styles.title}>{exam.name}</Text>
@@ -94,29 +73,11 @@ export default function ExamDetailScreen() {
             <Ionicons name="calendar-outline" size={18} color="#3498db" />
             <Text style={styles.sectionTitle}>日程</Text>
           </View>
-          <InfoRow
-            icon="flag-outline"
-            label="試験日"
-            value={formatTs(exam.examDate)}
-            highlight
-          />
-          <InfoRow
-            icon="play-outline"
-            label="申込開始"
-            value={formatTs(exam.applicationStart)}
-          />
-          <InfoRow
-            icon="alert-circle-outline"
-            label="申込締切"
-            value={formatTs(exam.applicationDeadline)}
-            danger
-          />
+          <InfoRow icon="flag-outline" label="試験日" value={formatDate(exam.examDate)} highlight />
+          <InfoRow icon="play-outline" label="申込開始" value={formatDate(exam.applicationStart)} />
+          <InfoRow icon="alert-circle-outline" label="申込締切" value={formatDate(exam.applicationDeadline)} danger />
           {exam.resultDate && (
-            <InfoRow
-              icon="ribbon-outline"
-              label="結果発表"
-              value={formatTs(exam.resultDate)}
-            />
+            <InfoRow icon="ribbon-outline" label="結果発表" value={formatDate(exam.resultDate)} />
           )}
         </Card>
       </Animated.View>
@@ -134,19 +95,6 @@ export default function ExamDetailScreen() {
           )}
         </Card>
       </Animated.View>
-
-      {/* Official link */}
-      {exam.officialUrl && (
-        <Animated.View entering={FadeInUp.delay(300).duration(400).springify()}>
-          <Card>
-            <Button
-              title="公式サイトを開く"
-              onPress={() => Linking.openURL(exam.officialUrl)}
-              icon={<Ionicons name="open-outline" size={18} color="#fff" />}
-            />
-          </Card>
-        </Animated.View>
-      )}
     </ScrollView>
   );
 }

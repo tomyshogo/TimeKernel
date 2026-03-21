@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, Alert } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -20,9 +21,9 @@ export default function ProfileSettingsScreen() {
     try {
       await updateUserName(uid, name.trim());
       setProfile({ ...profile!, name: name.trim() });
-      toast.success('名前を保存しました');
+      Alert.alert('保存完了', '名前を保存しました');
     } catch {
-      toast.error('名前の保存に失敗しました');
+      Alert.alert('エラー', '名前の保存に失敗しました');
     }
   };
 
@@ -30,45 +31,49 @@ export default function ProfileSettingsScreen() {
     if (!email.trim()) return;
     try {
       await sendEmailLink(email.trim());
-      toast.success('認証メールを送信しました');
+      Alert.alert('送信完了', '認証メールを送信しました');
     } catch {
-      toast.error('メール送信に失敗しました');
+      Alert.alert('エラー', 'メール送信に失敗しました');
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Card>
-        <Text style={styles.sectionTitle}>名前</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="名前を入力"
-        />
-        <Button title="保存" onPress={handleSaveName} style={{ marginTop: 12 }} />
-      </Card>
+      <Animated.View entering={FadeInDown.delay(0 * 60).duration(300).springify()}>
+        <Card>
+          <Text style={styles.sectionTitle}>名前</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="名前を入力"
+          />
+          <Button title="保存" onPress={handleSaveName} style={{ marginTop: 12 }} />
+        </Card>
+      </Animated.View>
 
-      <Card>
-        <Text style={styles.sectionTitle}>メールリンク認証</Text>
-        <Text style={styles.description}>
-          メールアドレスを登録すると、端末変更時にデータを引き継げます
-        </Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="example@email.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Button
-          title="認証メールを送信"
-          onPress={handleSendEmailLink}
-          variant="secondary"
-          style={{ marginTop: 12 }}
-        />
-      </Card>
+      <Animated.View entering={FadeInDown.delay(1 * 60).duration(300).springify()}>
+        <Card>
+          <Text style={styles.sectionTitle}>メールリンク認証</Text>
+          <Text style={styles.description}>
+            メールアドレスを登録すると、端末変更時にデータを引き継げます
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="example@email.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Button
+            title="認証メールを送信"
+            onPress={handleSendEmailLink}
+            variant="secondary"
+            style={{ marginTop: 12 }}
+          />
+        </Card>
+      </Animated.View>
     </ScrollView>
   );
 }

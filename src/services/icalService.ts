@@ -1,7 +1,6 @@
 import { CalendarEvent, CalendarEventInput } from '../types';
-import { addEvent } from './eventService';
-import { upsertExternalEventMap, updateSyncTimestamp } from './externalCalendarService';
-import { Timestamp } from 'firebase/firestore';
+import { addEvent, updateEvent, getExternalEventIds } from './eventService';
+import { updateSyncTimestamp } from './externalCalendarService';
 import { ExternalCalendar } from '../types';
 
 // ── iCal パーサー（軽量自前実装）──
@@ -134,6 +133,9 @@ export async function importICSToTimeKernel(
   const icalEvents = parseICS(icsText);
   let importedCount = 0;
 
+  // イベントドキュメント自体から externalId で重複チェック
+  const existingMap = await getExternalEventIds(targetCalendarId, 'ical');
+
   for (const ie of icalEvents) {
     const startDt = parseICalDateTime(ie.dtstart);
     const endDt = ie.dtend ? parseICalDateTime(ie.dtend) : new Date(startDt.getTime() + 3600000);
@@ -142,7 +144,7 @@ export async function importICSToTimeKernel(
     const startTime = `${String(startDt.getHours()).padStart(2, '0')}:${String(startDt.getMinutes()).padStart(2, '0')}`;
     const endTime = `${String(endDt.getHours()).padStart(2, '0')}:${String(endDt.getMinutes()).padStart(2, '0')}`;
 
-    const eventInput: CalendarEventInput = {
+    const eventData: CalendarEventInput = {
       title: ie.summary || '(タイトルなし)',
       type: 'event',
       date,
@@ -150,18 +152,17 @@ export async function importICSToTimeKernel(
       endTime,
       color: externalCal.color,
       createdBy: uid,
+      externalId: ie.uid,
+      externalProvider: 'ical',
     };
 
-    const eventId = await addEvent(targetCalendarId, eventInput);
-    await upsertExternalEventMap(uid, {
-      externalId: ie.uid,
-      internalEventId: eventId,
-      calendarId: targetCalendarId,
-      provider: 'ical',
-      lastSynced: Timestamp.now(),
-    });
-
-    importedCount++;
+    const existingEventId = existingMap.get(ie.uid);
+    if (existingEventId) {
+      await updateEvent(targetCalendarId, existingEventId, eventData);
+    } else {
+      await addEvent(targetCalendarId, eventData);
+      importedCount++;
+    }
   }
 
   await updateSyncTimestamp(uid, externalCal.id);

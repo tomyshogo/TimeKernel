@@ -44,7 +44,9 @@
           "calendarPermission": "TimeKernelがカレンダーにアクセスして予定を同期します"
         }
       ],
-      "expo-background-fetch"
+      "expo-background-fetch",
+      "expo-web-browser",
+      "expo-sqlite"
     ]
   }
 }

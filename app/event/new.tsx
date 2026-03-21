@@ -9,7 +9,7 @@ import { CalendarEventInput } from '../../src/types';
 
 export default function NewEventScreen() {
   const router = useRouter();
-  const { date } = useLocalSearchParams<{ date?: string }>();
+  const { date, type } = useLocalSearchParams<{ date?: string; type?: string }>();
   const uid = useAuthStore((s) => s.uid);
   const settings = useAuthStore((s) => s.settings);
   const { calendars, selectedCalendarIds } = useCalendars();
@@ -32,11 +32,12 @@ export default function NewEventScreen() {
 
   return (
     <EventForm
-      initialValues={{ date: date || '' }}
+      initialValues={{ date: date || '', ...(type ? { type: type as any } : {}) }}
       calendars={calendars}
       selectedCalendarId={selectedCalendarIds[0] || calendars[0].id}
       onSubmit={handleSubmit}
       uid={uid}
+      fixedType={!!type}
     />
   );
 }

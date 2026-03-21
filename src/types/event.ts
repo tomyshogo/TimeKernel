@@ -19,12 +19,16 @@ export interface CalendarEvent {
   title: string;
   type: EventType;
   date: string;
+  /** 複数日イベントの終了日 (YYYY-MM-DD)。未設定なら単日 */
+  endDate?: string;
+  /** 終日イベントかどうか */
+  isAllDay?: boolean;
   startTime: string;
   endTime: string;
   hourlyWage?: number;
   color: string;
   createdBy: string;
-  createdAt: Timestamp;
+  createdAt: Timestamp | null;
   calendarId: string;
   /** カレンダーの members を非正規化（CollectionGroup クエリ + ルール最適化用） */
   members: string[];
@@ -32,6 +36,12 @@ export interface CalendarEvent {
   recurrence?: RecurrenceRule;
   /** サーバー未同期のローカル変更がある場合 true */
   hasPendingWrites?: boolean;
+  /** 外部カレンダーからインポートされたイベントの外部ID */
+  externalId?: string;
+  /** 外部カレンダーのプロバイダー */
+  externalProvider?: string;
+  /** 関連URL（試験の公式サイトなど） */
+  url?: string;
 }
 
 export type CalendarEventInput = Omit<CalendarEvent, 'id' | 'createdAt' | 'calendarId' | 'members'>;

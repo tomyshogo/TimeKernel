@@ -1,0 +1,11 @@
+{
+  "name": "timekernel-alexa-skill",
+  "version": "1.0.0",
+  "description": "TimeKernel Alexa Skill Lambda Function",
+  "main": "index.js",
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.86.0",
+    "firebase-admin": "^12.0.0"
+  }
+}

@@ -1,0 +1,50 @@
+name: Update Exam Schedules
+
+on:
+  # schedule:
+  #   # 3ヶ月に1回（1月/4月/7月/10月の1日）
+  #   - cron: '0 0 1 1,4,7,10 *'
+  workflow_dispatch: # 手動実行のみ（リリース時にscheduleを有効化）
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-exam-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate exam data with Claude API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/generateExamData.mjs
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet src/data/examData.ts && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update exam schedule data'
+          title: '資格試験データ自動更新'
+          body: |
+            ## 概要
+            Claude APIにより資格試験スケジュールデータを自動更新しました。
+
+            ## 確認事項
+            - [ ] 日程が公式サイトと一致しているか確認
+            - [ ] 新しい年度のデータが追加されているか確認
+
+            > このPRはGitHub Actionsにより自動生成されました
+          branch: chore/update-exam-data
+          delete-branch: true

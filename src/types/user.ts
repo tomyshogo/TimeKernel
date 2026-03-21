@@ -24,6 +24,14 @@ export interface NotificationSettings {
     start: string; // HH:MM
     end: string;   // HH:MM
   };
+  /** 課題の締切通知 */
+  taskReminder: {
+    enabled: boolean;
+    /** 締切何時間前に通知 */
+    hoursBeforeDeadline: number;
+    /** 前日リマインダー */
+    dayBefore: boolean;
+  };
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -39,6 +47,11 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     start: '23:00',
     end: '07:00',
   },
+  taskReminder: {
+    enabled: true,
+    hoursBeforeDeadline: 1,
+    dayBefore: true,
+  },
 };
 
 export interface UserSettings {
@@ -46,6 +59,8 @@ export interface UserSettings {
   nightShift: NightShiftSettings;
   notifications: NotificationSettings;
   weather: WeatherSettings;
+  /** Alexa連携ON/OFFでローカルイベントをFirestoreにミラーリング */
+  alexaSync?: boolean;
 }
 
 export interface UserProfile {

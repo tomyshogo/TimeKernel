@@ -1,17 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { CalendarEvent, Task } from '../../types';
 import { formatDate } from '../../utils/dateHelpers';
 import { subscribeToTasks } from '../../services/taskService';
-import { getStudyRecords, summarizeStudyRecords } from '../../services/studyService';
+import { useWeather } from '../../hooks/useWeather';
+import { useAuthStore } from '../../stores/authStore';
+import { getWeatherEmoji, getSmartClothingSuggestion, formatTemp } from '../../utils/weatherClothing';
+import { ForecastEntry } from '../../types/weather';
+import { useTrainStatus } from '../../hooks/useTrainStatus';
 
 interface Props {
   uid: string | null;
@@ -19,254 +17,448 @@ interface Props {
   selectedDate: string;
 }
 
-interface SummaryData {
-  todayEventCount: number;
-  pendingTaskCount: number;
-  overdueTaskCount: number;
-  monthStudyMinutes: number;
-  nextEvent: CalendarEvent | null;
-}
-
-function AnimatedNumber({ value, color }: { value: number; color: string }) {
-  const animValue = useSharedValue(0);
-
-  useEffect(() => {
-    animValue.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
-  }, [value]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: animValue.value,
-    transform: [{ scale: 0.5 + animValue.value * 0.5 }],
-  }));
-
-  return (
-    <Animated.Text style={[styles.metricValue, { color }, animStyle]}>
-      {value}
-    </Animated.Text>
-  );
-}
-
 export function DashboardSummary({ uid, events, selectedDate }: Props) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [monthStudyMinutes, setMonthStudyMinutes] = useState(0);
+  const [weatherModalVisible, setWeatherModalVisible] = useState(false);
+  const weatherSettings = useAuthStore((s) => s.settings.weather);
+  const { weather, refresh } = useWeather(weatherSettings);
+  const { subscribedLines, delayedLines, addLine, removeLine } = useTrainStatus();
 
-  // タスク購読
   useEffect(() => {
     if (!uid) return;
     const unsub = subscribeToTasks(uid, setTasks);
     return () => unsub();
   }, [uid]);
 
-  // 今月の勉強時間
-  useEffect(() => {
-    if (!uid) return;
-    const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const monthEnd = formatDate(now);
-    getStudyRecords(uid, monthStart, monthEnd).then((records) => {
-      const summary = summarizeStudyRecords(records);
-      setMonthStudyMinutes(summary.totalMinutes);
-    }).catch(() => {});
-  }, [uid]);
-
-  const summary = useMemo<SummaryData>(() => {
+  const summary = useMemo(() => {
     const todayStr = formatDate(new Date());
     const todayEvents = events.filter((e) => e.date === todayStr && !e.id.startsWith('timetable_'));
-    const now = new Date();
-
     const pendingTasks = tasks.filter((t) => t.status !== 'done');
-    const overdueTasks = pendingTasks.filter((t) => {
-      const d = t.deadline?.toDate?.() || new Date(t.deadline);
-      return d.getTime() < now.getTime();
-    });
-
-    // 次の予定（今日の中でまだ始まっていないもの）
+    const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const upcoming = todayEvents
+    const nextEvent = todayEvents
       .filter((e) => e.startTime > nowTime)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0] || null;
 
     return {
       todayEventCount: todayEvents.length,
       pendingTaskCount: pendingTasks.length,
-      overdueTaskCount: overdueTasks.length,
-      monthStudyMinutes,
-      nextEvent: upcoming[0] || null,
+      nextEvent,
     };
-  }, [events, tasks, monthStudyMinutes]);
-
-  // カード展開アニメーション
-  const cardOpacity = useSharedValue(0);
-  const cardTranslateY = useSharedValue(10);
-
-  useEffect(() => {
-    cardOpacity.value = withDelay(100, withTiming(1, { duration: 400 }));
-    cardTranslateY.value = withDelay(100, withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) }));
-  }, []);
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateY: cardTranslateY.value }],
-  }));
-
-  const studyHours = Math.floor(monthStudyMinutes / 60);
-  const studyMins = monthStudyMinutes % 60;
+  }, [events, tasks]);
 
   return (
-    <Animated.View style={[styles.container, cardAnimStyle]}>
-      {/* メトリクスカード群 */}
-      <View style={styles.metricsRow}>
-        <TouchableOpacity style={styles.metricCard} activeOpacity={0.7}>
-          <AnimatedNumber value={summary.todayEventCount} color="#3498db" />
-          <Text style={styles.metricLabel}>今日の予定</Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <View style={styles.row}>
+        {weather && (
+          <TouchableOpacity style={styles.chip} onPress={() => setWeatherModalVisible(true)}>
+            <Text style={styles.weatherEmoji}>{getWeatherEmoji(weather.icon)}</Text>
+            <Text style={styles.chipBold}>{Math.round(weather.temp)}°</Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.chip}>
+          <Ionicons name="calendar" size={13} color="#3498db" />
+          <Text style={styles.chipText}>
+            今日 <Text style={styles.chipBold}>{summary.todayEventCount}</Text>件
+          </Text>
+        </View>
 
         <TouchableOpacity
-          style={styles.metricCard}
-          activeOpacity={0.7}
+          style={styles.chip}
           onPress={() => router.push('/(tabs)/tasks')}
         >
-          <AnimatedNumber
-            value={summary.pendingTaskCount}
-            color={summary.overdueTaskCount > 0 ? '#e74c3c' : '#2ecc71'}
-          />
-          <Text style={styles.metricLabel}>残りタスク</Text>
-          {summary.overdueTaskCount > 0 && (
-            <View style={styles.overdueBadge}>
-              <Text style={styles.overdueBadgeText}>{summary.overdueTaskCount}件超過</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.metricCard}
-          activeOpacity={0.7}
-          onPress={() => router.push('/study-stats')}
-        >
-          <Text style={[styles.metricValue, { color: '#9b59b6' }]}>
-            {studyHours > 0 ? `${studyHours}h` : `${studyMins}m`}
+          <Ionicons name="checkbox" size={13} color={summary.pendingTaskCount > 0 ? '#e67e22' : '#2ecc71'} />
+          <Text style={styles.chipText}>
+            タスク <Text style={styles.chipBold}>{summary.pendingTaskCount}</Text>
           </Text>
-          <Text style={styles.metricLabel}>今月の勉強</Text>
         </TouchableOpacity>
-      </View>
 
-      {/* 次の予定バナー */}
-      {summary.nextEvent && (
-        <TouchableOpacity
-          style={styles.nextEventBanner}
-          activeOpacity={0.7}
-          onPress={() => {
-            const e = summary.nextEvent!;
-            if (!e.id.startsWith('exam_')) {
-              router.push(`/event/${e.id}?calendarId=${e.calendarId}`);
-            }
-          }}
-        >
-          <View style={[styles.nextEventDot, { backgroundColor: summary.nextEvent.color }]} />
-          <View style={styles.nextEventInfo}>
-            <Text style={styles.nextEventLabel}>次の予定</Text>
-            <Text style={styles.nextEventTitle} numberOfLines={1}>
-              {summary.nextEvent.title}
+        {delayedLines.map((line) => (
+          <TouchableOpacity
+            key={line.lineId}
+            style={[styles.chip, line.status === 'suspended' ? styles.chipSuspended : styles.chipDelay]}
+            onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(line.operator + ' ' + line.lineName + ' 運行情報')}`)}
+          >
+            <Ionicons name="train" size={13} color={line.status === 'suspended' ? '#e74c3c' : '#e67e22'} />
+            <Text style={[styles.chipText, { color: line.status === 'suspended' ? '#e74c3c' : '#e67e22', fontWeight: '700' }]} numberOfLines={1}>
+              {line.lineName} {line.status === 'suspended' ? '運休' : '遅延'}
             </Text>
+          </TouchableOpacity>
+        ))}
+
+
+        {summary.nextEvent && (
+          <TouchableOpacity
+            style={[styles.chip, styles.nextChip]}
+            onPress={() => {
+              const e = summary.nextEvent!;
+              if (!e.id.startsWith('exam_')) {
+                router.push(`/event/${e.id}?calendarId=${e.calendarId}`);
+              }
+            }}
+          >
+            <View style={[styles.dot, { backgroundColor: summary.nextEvent.color }]} />
+            <Text style={styles.chipText} numberOfLines={1}>
+              {summary.nextEvent.startTime} {summary.nextEvent.title}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {weather && (() => {
+        const todayStr = formatDate(new Date());
+        const todayEvents = events.filter((e) => e.date === todayStr);
+        const suggestion = getSmartClothingSuggestion(weather, todayEvents);
+        return (
+          <View style={styles.clothingRow}>
+            <Text style={styles.clothingIcon}>{suggestion.icon}</Text>
+            <View style={styles.clothingContent}>
+              <Text style={styles.clothingText}>{suggestion.message}</Text>
+              {suggestion.context && (
+                <Text style={styles.clothingContext}>{suggestion.context}</Text>
+              )}
+            </View>
+            {suggestion.rainWarning && (
+              <Text style={styles.rainWarning}>{suggestion.rainWarning}</Text>
+            )}
           </View>
-          <Text style={styles.nextEventTime}>{summary.nextEvent.startTime}</Text>
-        </TouchableOpacity>
+        );
+      })()}
+
+      {weather && (
+        <Modal visible={weatherModalVisible} transparent animationType="fade" onRequestClose={() => setWeatherModalVisible(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setWeatherModalVisible(false)}>
+            <View style={styles.weatherModal} onStartShouldSetResponder={() => true}>
+              {/* ヘッダー */}
+              <View style={styles.wmHeader}>
+                <Text style={styles.wmEmoji}>{getWeatherEmoji(weather.icon)}</Text>
+                <View>
+                  <Text style={styles.wmTemp}>{Math.round(weather.temp)}℃</Text>
+                  <Text style={styles.wmDesc}>{weather.description}</Text>
+                </View>
+                <View style={styles.wmLocation}>
+                  <Ionicons name="location-outline" size={14} color="#95a5a6" />
+                  <Text style={styles.wmCityText}>現在地</Text>
+                </View>
+              </View>
+
+              {/* 気温・降水 */}
+              <View style={styles.wmDetailsRow}>
+                <View style={styles.wmDetailItem}>
+                  <Ionicons name="arrow-up" size={16} color="#e74c3c" />
+                  <Text style={styles.wmDetailLabel}>最高</Text>
+                  <Text style={styles.wmDetailValue}>{Math.round(weather.tempMax)}℃</Text>
+                </View>
+                <View style={styles.wmDetailItem}>
+                  <Ionicons name="arrow-down" size={16} color="#3498db" />
+                  <Text style={styles.wmDetailLabel}>最低</Text>
+                  <Text style={styles.wmDetailValue}>{Math.round(weather.tempMin)}℃</Text>
+                </View>
+                <View style={styles.wmDetailItem}>
+                  <Ionicons name="water" size={16} color="#2ecc71" />
+                  <Text style={styles.wmDetailLabel}>降水</Text>
+                  <Text style={styles.wmDetailValue}>{weather.pop}%</Text>
+                </View>
+              </View>
+
+              {/* 3時間ごと予報 */}
+              {weather.forecast && weather.forecast.length > 0 && (() => {
+                const nowTs = Date.now();
+                const upcoming = weather.forecast!.filter((f) => new Date(f.dt.replace(' ', 'T')).getTime() > nowTs);
+                if (upcoming.length === 0) return null;
+                return (
+                <View style={styles.wmForecastSection}>
+                  <Text style={styles.wmSectionTitle}>今後の天気</Text>
+                  <View style={styles.wmForecastRow}>
+                    {upcoming.map((f, i) => {
+                      const parts = f.dt.split(' ');
+                      const time = parts[1]?.substring(0, 5) || '';
+                      const date = parts[0] || '';
+                      const today = new Date().toISOString().split('T')[0];
+                      const isNextDay = date !== today;
+                      return (
+                        <View key={i} style={styles.wmForecastItem}>
+                          <Text style={[styles.wmForecastDate, !isNextDay && { color: 'transparent' }]}>
+                            {isNextDay ? '翌日' : '　　'}
+                          </Text>
+                          <Text style={styles.wmForecastTime}>{time}</Text>
+                          <Text style={styles.wmForecastEmoji}>{getWeatherEmoji(f.icon)}</Text>
+                          <Text style={styles.wmForecastTemp}>{Math.round(f.temp)}°</Text>
+                          <View style={styles.wmForecastPopRow}>
+                            <Ionicons name="water" size={8} color="#3498db" />
+                            <Text style={styles.wmForecastPop}>{f.pop}%</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+                );
+              })()}
+
+              {/* 服装提案 */}
+              {(() => {
+                const todayStr = formatDate(new Date());
+                const todayEvents = events.filter((e) => e.date === todayStr);
+                const suggestion = getSmartClothingSuggestion(weather, todayEvents);
+                return (
+                  <View style={styles.wmClothing}>
+                    <Text style={styles.wmSectionTitle}>服装提案</Text>
+                    <View style={styles.wmClothingRow}>
+                      <Text style={styles.wmClothingIcon}>{suggestion.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.wmClothingText}>{suggestion.message}</Text>
+                        {suggestion.context && (
+                          <Text style={styles.wmClothingContext}>{suggestion.context}</Text>
+                        )}
+                      </View>
+                    </View>
+                    {suggestion.rainWarning && (
+                      <Text style={styles.wmRainWarning}>{suggestion.rainWarning}</Text>
+                    )}
+                  </View>
+                );
+              })()}
+
+              <TouchableOpacity style={styles.wmCloseBtn} onPress={() => setWeatherModalVisible(false)}>
+                <Text style={styles.wmCloseBtnText}>閉じる</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Modal>
       )}
-    </Animated.View>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f8f9fa',
   },
-  metricsRow: {
+  row: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.03)',
+    gap: 6,
   },
-  metricValue: {
-    fontSize: 28,
-    fontWeight: '900',
-    fontVariant: ['tabular-nums'],
-  },
-  metricLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#95a5a6',
-    marginTop: 2,
-  },
-  overdueBadge: {
-    backgroundColor: '#fdecea',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  overdueBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#e74c3c',
-  },
-  nextEventBanner: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.03)',
+    borderColor: 'rgba(0,0,0,0.04)',
   },
-  nextEventDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  nextEventInfo: {
+  nextChip: {
     flex: 1,
   },
-  nextEventLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#95a5a6',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  nextEventTitle: {
+  weatherEmoji: {
     fontSize: 14,
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  chipBold: {
     fontWeight: '700',
     color: '#2c3e50',
+    fontSize: 12,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  clothingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  clothingIcon: {
+    fontSize: 13,
+  },
+  clothingContent: {
+    flex: 1,
+  },
+  clothingText: {
+    fontSize: 11,
+    color: '#7f8c8d',
+  },
+  clothingContext: {
+    fontSize: 10,
+    color: '#b0b8c8',
     marginTop: 1,
   },
-  nextEventTime: {
-    fontSize: 16,
-    fontWeight: '800',
+  rainWarning: {
+    fontSize: 11,
     color: '#3498db',
-    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  chipDelay: {
+    backgroundColor: '#fef3e6',
+    borderColor: '#e67e2233',
+  },
+  chipSuspended: {
+    backgroundColor: '#fde8e8',
+    borderColor: '#e74c3c33',
+  },
+  // Weather modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weatherModal: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    width: '88%',
+    maxWidth: 360,
+  },
+  wmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  wmEmoji: {
+    fontSize: 40,
+  },
+  wmTemp: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2c3e50',
+  },
+  wmDesc: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '600',
+  },
+  wmLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: 'auto',
+  },
+  wmCityText: {
+    fontSize: 12,
+    color: '#95a5a6',
+  },
+  wmDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  wmDetailItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  wmDetailLabel: {
+    fontSize: 11,
+    color: '#95a5a6',
+    fontWeight: '600',
+  },
+  wmDetailValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  wmForecastSection: {
+    marginBottom: 16,
+  },
+  wmSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  wmForecastRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  wmForecastItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  wmForecastTime: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  wmForecastEmoji: {
+    fontSize: 20,
+  },
+  wmForecastTemp: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  wmForecastDate: {
+    fontSize: 9,
+    color: '#e67e22',
+    fontWeight: '700',
+  },
+  wmForecastPopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  wmForecastPop: {
+    fontSize: 10,
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  wmClothing: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  wmClothingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  wmClothingIcon: {
+    fontSize: 20,
+  },
+  wmClothingText: {
+    fontSize: 13,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  wmClothingContext: {
+    fontSize: 11,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  wmRainWarning: {
+    fontSize: 12,
+    color: '#3498db',
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  wmCloseBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#f5f7fa',
+  },
+  wmCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7f8c8d',
   },
 });

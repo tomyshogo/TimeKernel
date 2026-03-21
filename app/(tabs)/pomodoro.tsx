@@ -172,10 +172,6 @@ export default function PomodoroScreen() {
   };
 
   const handleStart = () => {
-    if (!selectedSubject) {
-      toast.error('勉強する科目を選択してください');
-      return;
-    }
     startTimeRef.current = new Date();
     setIsRunning(true);
   };

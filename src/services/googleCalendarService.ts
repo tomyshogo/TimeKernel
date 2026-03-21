@@ -1,9 +1,8 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { CalendarEventInput, ExternalCalendar } from '../types';
-import { addEvent } from './eventService';
-import { upsertExternalEventMap, updateSyncTimestamp } from './externalCalendarService';
-import { Timestamp } from 'firebase/firestore';
+import { addEvent, updateEvent, getExternalEventIds } from './eventService';
+import { updateSyncTimestamp } from './externalCalendarService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -23,7 +22,8 @@ export async function authenticateGoogle(): Promise<{
   accessToken: string;
   refreshToken?: string;
 } | null> {
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'timekernel' });
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'timekernel', path: 'google-auth' });
+  console.warn('[Google Auth] redirectUri:', redirectUri);
 
   const request = new AuthSession.AuthRequest({
     clientId: GOOGLE_CLIENT_ID,
@@ -167,6 +167,9 @@ export async function syncGoogleToTimeKernel(
     timeMax
   );
 
+  // イベントドキュメント自体から externalId で重複チェック
+  const existingMap = await getExternalEventIds(targetCalendarId, 'google');
+
   let importedCount = 0;
   for (const ge of googleEvents) {
     const startDate = ge.start?.dateTime || ge.start?.date || '';
@@ -181,7 +184,7 @@ export async function syncGoogleToTimeKernel(
     const startTime = `${String(startDt.getHours()).padStart(2, '0')}:${String(startDt.getMinutes()).padStart(2, '0')}`;
     const endTime = `${String(endDt.getHours()).padStart(2, '0')}:${String(endDt.getMinutes()).padStart(2, '0')}`;
 
-    const eventInput: CalendarEventInput = {
+    const eventData: CalendarEventInput = {
       title: ge.summary || '(タイトルなし)',
       type: 'event',
       date,
@@ -189,18 +192,17 @@ export async function syncGoogleToTimeKernel(
       endTime,
       color: externalCal.color,
       createdBy: uid,
+      externalId: ge.id,
+      externalProvider: 'google',
     };
 
-    const eventId = await addEvent(targetCalendarId, eventInput);
-    await upsertExternalEventMap(uid, {
-      externalId: ge.id,
-      internalEventId: eventId,
-      calendarId: targetCalendarId,
-      provider: 'google',
-      lastSynced: Timestamp.now(),
-    });
-
-    importedCount++;
+    const existingEventId = existingMap.get(ge.id);
+    if (existingEventId) {
+      await updateEvent(targetCalendarId, existingEventId, eventData);
+    } else {
+      await addEvent(targetCalendarId, eventData);
+      importedCount++;
+    }
   }
 
   await updateSyncTimestamp(uid, externalCal.id);

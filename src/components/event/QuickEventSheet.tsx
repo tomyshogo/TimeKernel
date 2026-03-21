@@ -1,6 +1,18 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  ScrollView,
+  Keyboard,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui/Button';
 import { DatePicker, TimePicker } from '../ui/DateTimePicker';
 import { TypeSelector } from './TypeSelector';
@@ -25,26 +37,33 @@ export function QuickEventSheet({
   uid,
   initialDate = '',
 }: Props) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['55%', '80%'], []);
+  const getNowTime = () => {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+  };
+  const getEndTimeDefault = () => {
+    const n = new Date();
+    return `${String(Math.min(n.getHours() + 1, 23)).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+  };
 
   const [type, setType] = useState<EventType>('event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(initialDate);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [startTime, setStartTime] = useState(getNowTime);
+  const [endTime, setEndTime] = useState(getEndTimeDefault);
   const [loading, setLoading] = useState(false);
 
   const resetForm = useCallback(() => {
     setTitle('');
     setDate(initialDate);
-    setStartTime('');
-    setEndTime('');
+    setStartTime(getNowTime());
+    setEndTime(getEndTimeDefault());
     setType('event');
     setLoading(false);
   }, [initialDate]);
 
   const handleClose = useCallback(() => {
+    Keyboard.dismiss();
     resetForm();
     onClose();
   }, [onClose, resetForm]);
@@ -74,92 +93,101 @@ export function QuickEventSheet({
     }
   }, [title, date, startTime, endTime, type, calendarId, uid, onSubmit, handleClose]);
 
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-      />
-    ),
-    []
-  );
-
-  if (!visible) return null;
-
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onClose={handleClose}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={styles.sheetBackground}
-      handleIndicatorStyle={styles.handleIndicator}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
     >
-      <BottomSheetView style={styles.content}>
-        <Text style={styles.sheetTitle}>予定を追加</Text>
-
-        <TypeSelector
-          selected={type}
-          onSelect={setType}
-        />
-
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="タイトル"
-          placeholderTextColor="#bdc3c7"
-          autoFocus
-        />
-
-        <DatePicker value={date} onChange={setDate} placeholder="日付を選択" />
-
-        <View style={styles.timeRow}>
-          <View style={styles.timeHalf}>
-            <TimePicker value={startTime} onChange={setStartTime} placeholder="開始" />
-          </View>
-          <Text style={styles.timeDash}>→</Text>
-          <View style={styles.timeHalf}>
-            <TimePicker value={endTime} onChange={setEndTime} placeholder="終了" />
-          </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} hitSlop={8}>
+            <Ionicons name="close" size={24} color="#2c3e50" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>予定を追加</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <View style={styles.actions}>
-          <Button
-            title="追加"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={!title.trim() || !date || !startTime || !endTime}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TypeSelector selected={type} onSelect={setType} />
+
+          <Text style={styles.label}>タイトル</Text>
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="タイトル"
+            placeholderTextColor="#bdc3c7"
+            autoFocus
           />
-        </View>
-      </BottomSheetView>
-    </BottomSheet>
+
+          <Text style={styles.label}>日付</Text>
+          <DatePicker value={date} onChange={setDate} placeholder="日付を選択" />
+
+          <Text style={styles.label}>時間</Text>
+          <View style={styles.timeRow}>
+            <View style={styles.timeHalf}>
+              <TimePicker value={startTime} onChange={setStartTime} placeholder="開始" />
+            </View>
+            <Text style={styles.timeDash}>→</Text>
+            <View style={styles.timeHalf}>
+              <TimePicker value={endTime} onChange={setEndTime} placeholder="終了" />
+            </View>
+          </View>
+
+          <View style={styles.actions}>
+            <Button
+              title="追加"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={!title.trim() || !date || !startTime || !endTime}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  sheetBackground: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 16 : 20,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
   },
-  handleIndicator: {
-    backgroundColor: '#d0d0d0',
-    width: 40,
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   content: {
     padding: 20,
     gap: 12,
+    paddingBottom: 40,
   },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#2c3e50',
-    marginBottom: 4,
+    marginTop: 4,
   },
   input: {
     backgroundColor: '#f8f9fa',
@@ -184,6 +212,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actions: {
-    marginTop: 8,
+    marginTop: 16,
   },
 });

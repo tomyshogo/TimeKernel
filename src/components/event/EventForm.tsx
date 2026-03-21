@@ -6,6 +6,9 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
 } from 'react-native';
 import { EventType, CalendarEventInput, Calendar, RecurrenceRule } from '../../types';
 import { TypeSelector } from './TypeSelector';
@@ -24,6 +27,7 @@ interface Props {
   onDelete?: () => void;
   isEdit?: boolean;
   uid: string;
+  fixedType?: boolean;
 }
 
 export function EventForm({
@@ -34,12 +38,18 @@ export function EventForm({
   onDelete,
   isEdit = false,
   uid,
+  fixedType = false,
 }: Props) {
   const [type, setType] = useState<EventType>(initialValues?.type || 'event');
   const [title, setTitle] = useState(initialValues?.title || '');
   const [date, setDate] = useState(initialValues?.date || '');
-  const [startTime, setStartTime] = useState(initialValues?.startTime || '');
-  const [endTime, setEndTime] = useState(initialValues?.endTime || '');
+  const [endDate, setEndDate] = useState(initialValues?.endDate || '');
+  const [isAllDay, setIsAllDay] = useState(initialValues?.isAllDay || false);
+  const nowForDefault = new Date();
+  const defaultStartTime = `${String(nowForDefault.getHours()).padStart(2, '0')}:${String(nowForDefault.getMinutes()).padStart(2, '0')}`;
+  const defaultEndTime = `${String(Math.min(nowForDefault.getHours() + 1, 23)).padStart(2, '0')}:${String(nowForDefault.getMinutes()).padStart(2, '0')}`;
+  const [startTime, setStartTime] = useState(initialValues?.startTime || defaultStartTime);
+  const [endTime, setEndTime] = useState(initialValues?.endTime || defaultEndTime);
   const [hourlyWage, setHourlyWage] = useState(
     initialValues?.hourlyWage?.toString() || ''
   );
@@ -53,8 +63,24 @@ export function EventForm({
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  const handleAllDayToggle = (value: boolean) => {
+    setIsAllDay(value);
+    if (value) {
+      setStartTime('');
+      setEndTime('');
+    }
+  };
+
+  const isValid = () => {
+    if (!title.trim() || !date) return false;
+    if (isAllDay) return true;
+    if (!startTime || !endTime) return false;
+    if (!endDate && startTime >= endTime) return false;
+    return true;
+  };
+
   const handleSubmit = async () => {
-    if (!title.trim() || !date || !startTime || !endTime) {
+    if (!isValid()) {
       toast.error('必須項目を入力してください');
       return;
     }
@@ -65,10 +91,12 @@ export function EventForm({
         title: title.trim(),
         type,
         date,
-        startTime,
-        endTime,
+        startTime: isAllDay ? '' : startTime,
+        endTime: isAllDay ? '' : endTime,
         color,
         createdBy: uid,
+        ...(isAllDay ? { isAllDay: true } : {}),
+        ...(endDate && endDate !== date ? { endDate } : {}),
         ...(type === 'shift' && hourlyWage
           ? { hourlyWage: parseInt(hourlyWage, 10) }
           : {}),
@@ -83,15 +111,24 @@ export function EventForm({
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>タイプ</Text>
-      <TypeSelector
-        selected={type}
-        onSelect={(t) => {
-          setType(t);
-          setColor(EVENT_COLORS[t]);
-        }}
-      />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {!fixedType && (
+        <>
+          <Text style={styles.label}>タイプ</Text>
+          <TypeSelector
+            selected={type}
+            onSelect={(t) => {
+              setType(t);
+              setColor(EVENT_COLORS[t]);
+            }}
+          />
+        </>
+      )}
 
       <Text style={styles.label}>タイトル <Text style={styles.required}>*</Text></Text>
       <TextInput
@@ -108,21 +145,50 @@ export function EventForm({
         <Text style={styles.errorText}>タイトルを入力してください</Text>
       )}
 
-      <Text style={styles.label}>日付 <Text style={styles.required}>*</Text></Text>
-      <DatePicker value={date} onChange={setDate} placeholder="日付を選択" />
-
-      <View style={styles.row}>
-        <View style={styles.half}>
-          <Text style={styles.label}>開始時刻 <Text style={styles.required}>*</Text></Text>
-          <TimePicker value={startTime} onChange={setStartTime} placeholder="開始" />
-        </View>
-        <View style={styles.half}>
-          <Text style={styles.label}>終了時刻 <Text style={styles.required}>*</Text></Text>
-          <TimePicker value={endTime} onChange={setEndTime} placeholder="終了" />
-        </View>
+      <View style={styles.allDayRow}>
+        <Text style={styles.label}>終日</Text>
+        <Switch
+          value={isAllDay}
+          onValueChange={handleAllDayToggle}
+          trackColor={{ false: '#e0e0e0', true: '#3498db' }}
+        />
       </View>
-      {startTime && endTime && startTime >= endTime && (
-        <Text style={styles.errorText}>終了時刻は開始時刻より後にしてください</Text>
+
+      <Text style={styles.label}>開始日 <Text style={styles.required}>*</Text></Text>
+      <DatePicker value={date} onChange={setDate} placeholder="開始日を選択" />
+
+      {isAllDay && (
+        <>
+          <Text style={styles.label}>終了日</Text>
+          <DatePicker value={endDate} onChange={setEndDate} placeholder="終了日を選択（任意）" />
+          {endDate && date && endDate < date && (
+            <Text style={styles.errorText}>終了日は開始日以降にしてください</Text>
+          )}
+        </>
+      )}
+
+      {!isAllDay && (
+        <>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.label}>開始時刻 <Text style={styles.required}>*</Text></Text>
+              <TimePicker value={startTime} onChange={setStartTime} placeholder="開始" />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.label}>終了時刻 <Text style={styles.required}>*</Text></Text>
+              <TimePicker value={endTime} onChange={setEndTime} placeholder="終了" />
+            </View>
+          </View>
+          {!endDate && startTime && endTime && startTime >= endTime && (
+            <Text style={styles.errorText}>終了時刻は開始時刻より後にしてください</Text>
+          )}
+
+          <Text style={styles.label}>終了日</Text>
+          <DatePicker value={endDate} onChange={setEndDate} placeholder="複数日の場合に選択" />
+          {endDate && date && endDate < date && (
+            <Text style={styles.errorText}>終了日は開始日以降にしてください</Text>
+          )}
+        </>
       )}
 
       {type === 'shift' && (
@@ -166,7 +232,7 @@ export function EventForm({
           title={isEdit ? '更新' : '追加'}
           onPress={handleSubmit}
           loading={loading}
-          disabled={!title.trim() || !date || !startTime || !endTime || (startTime >= endTime)}
+          disabled={!isValid()}
         />
         {isEdit && onDelete && (
           <Button
@@ -183,6 +249,7 @@ export function EventForm({
         )}
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -216,6 +283,13 @@ const styles = StyleSheet.create({
   },
   half: {
     flex: 1,
+  },
+  allDayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 0,
   },
   calendarList: {
     flexDirection: 'row',

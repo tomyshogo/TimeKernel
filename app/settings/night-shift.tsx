@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, Switch } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -18,15 +19,16 @@ export default function NightShiftSettingsScreen() {
       const newSettings = { ...settings, nightShift };
       await updateUserSettings(uid, { nightShift });
       setSettings(newSettings);
-      toast.success('深夜割増設定を保存しました');
+      Alert.alert('保存完了', '深夜割増設定を保存しました');
     } catch {
-      toast.error('深夜割増設定の保存に失敗しました');
+      Alert.alert('エラー', '深夜割増設定の保存に失敗しました');
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Card>
+      <Animated.View entering={FadeInDown.delay(0 * 60).duration(300).springify()}>
+        <Card>
         <View style={styles.switchRow}>
           <Text style={styles.label}>深夜割増を有効にする</Text>
           <Switch
@@ -57,6 +59,7 @@ export default function NightShiftSettingsScreen() {
         )}
         <Button title="保存" onPress={handleSave} style={{ marginTop: 16 }} />
       </Card>
+      </Animated.View>
     </ScrollView>
   );
 }

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WeatherData, WeatherSettings } from '../types/weather';
+import { WeatherData, WeatherSettings, ForecastEntry } from '../types/weather';
 import { getLocation } from './locationService';
 
 const CACHE_KEY = 'weather_cache';
@@ -30,9 +30,9 @@ export async function fetchWeather(
     return null;
   }
 
-  // キャッシュ確認
+  // キャッシュ確認（forecastが含まれていない古いキャッシュは無視）
   const cached = await getCachedWeather();
-  if (cached) return cached;
+  if (cached && cached.forecast && cached.forecast.length > 0) return cached;
 
   // 位置情報取得
   let lat: number;
@@ -58,12 +58,17 @@ export async function fetchWeather(
     lon = FALLBACK_LOCATION.lon;
   }
 
-  // API呼び出し
-  const data = await fetchWeatherFromApi(lat, lon);
-  if (data) {
-    await cacheWeather(data);
+  // API呼び出し（現在の天気 + 予報を並行取得）
+  const [currentData, forecastData] = await Promise.all([
+    fetchWeatherFromApi(lat, lon),
+    fetchForecastFromApi(lat, lon),
+  ]);
+
+  if (currentData) {
+    currentData.forecast = forecastData;
+    await cacheWeather(currentData);
   }
-  return data;
+  return currentData;
 }
 
 /**
@@ -107,6 +112,35 @@ async function fetchWeatherFromApi(
   } catch (error) {
     console.warn('[Weather] Fetch failed:', error);
     return null;
+  }
+}
+
+/**
+ * OpenWeatherMap 5day/3hour Forecast API で今後24時間の予報を取得
+ */
+async function fetchForecastFromApi(
+  lat: number,
+  lon: number
+): Promise<ForecastEntry[]> {
+  const apiKey = getApiKey();
+  if (!apiKey) return [];
+
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=ja&cnt=8`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const json = await response.json();
+
+    return (json.list || []).map((item: any) => ({
+      dt: item.dt_txt,
+      temp: item.main.temp,
+      pop: Math.round((item.pop || 0) * 100),
+      icon: item.weather?.[0]?.icon || '01d',
+      description: item.weather?.[0]?.description || '',
+    }));
+  } catch {
+    return [];
   }
 }
 

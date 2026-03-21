@@ -3,6 +3,7 @@ import { Calendar } from '../types';
 import { subscribeToCalendar } from '../services/calendarService';
 import { useAuthStore } from '../stores/authStore';
 import { useCalendarStore } from '../stores/calendarStore';
+import { isLocalCalendarId, getLocalCalendars } from '../services/localEventService';
 
 export function useCalendars() {
   const profile = useAuthStore((s) => s.profile);
@@ -20,18 +21,31 @@ export function useCalendars() {
     const unsubscribes: (() => void)[] = [];
     const calMap = new Map<string, Calendar>();
 
+    // ローカルカレンダーを取得
+    const localCals = getLocalCalendars();
     for (const calId of profile.calendars) {
-      const unsub = subscribeToCalendar(calId, (cal) => {
-        if (cal) {
-          calMap.set(calId, cal);
-        } else {
-          calMap.delete(calId);
+      if (isLocalCalendarId(calId)) {
+        const localCal = localCals.find((c) => c.id === calId);
+        if (localCal) {
+          calMap.set(calId, localCal);
         }
-        setCalendars(Array.from(calMap.values()));
-        setIsLoading(false);
-      });
-      unsubscribes.push(unsub);
+      } else {
+        const unsub = subscribeToCalendar(calId, (cal) => {
+          if (cal) {
+            calMap.set(calId, cal);
+          } else {
+            calMap.delete(calId);
+          }
+          setCalendars(Array.from(calMap.values()));
+          setIsLoading(false);
+        });
+        unsubscribes.push(unsub);
+      }
     }
+
+    // ローカルのみの場合も即座に反映
+    setCalendars(Array.from(calMap.values()));
+    setIsLoading(false);
 
     if (selectedCalendarIds.length === 0 && profile.calendars.length > 0) {
       setSelectedCalendarIds(profile.calendars);

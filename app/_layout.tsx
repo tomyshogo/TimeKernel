@@ -23,7 +23,7 @@ function CloseButton() {
 function BackButton() {
   const router = useRouter();
   return (
-    <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginLeft: 16 }}>
+    <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center', height: 44 }}>
       <Ionicons name="chevron-back" size={24} color="#2c3e50" />
     </Pressable>
   );
@@ -52,7 +52,6 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NetworkBanner />
-      <ToastContainer />
       <CelebrationOverlay />
       <Stack
         screenOptions={{
@@ -69,6 +68,9 @@ export default function RootLayout() {
         <Stack.Screen name="settings/periods" options={{ title: '時限設定' }} />
         <Stack.Screen name="settings/weather" options={{ title: '天気・服装提案' }} />
         <Stack.Screen name="settings/night-shift" options={{ title: '深夜割増設定' }} />
+        <Stack.Screen name="settings/train" options={{ title: '通勤・通学路線' }} />
+        <Stack.Screen name="settings/portal" options={{ title: '大学ポータル' }} />
+        <Stack.Screen name="settings/alexa" options={{ title: 'Alexa連携' }} />
         <Stack.Screen
           name="event/new"
           options={{
@@ -176,6 +178,7 @@ export default function RootLayout() {
           options={{ title: 'プライバシー' }}
         />
       </Stack>
+      <ToastContainer />
     </GestureHandlerRootView>
   );
 }

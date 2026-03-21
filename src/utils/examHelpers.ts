@@ -1,81 +1,66 @@
-import { Timestamp } from 'firebase/firestore';
-import { ExamSchedule } from '../types/exam';
+import { LocalExamSchedule, getExamSearchUrl } from '../data/examData';
 import { CalendarEvent } from '../types/event';
-import { format } from 'date-fns';
 
 const EXAM_COLOR = '#8e44ad';
 const DEADLINE_COLOR = '#e74c3c';
 
 /**
- * ExamSchedule を CalendarEvent に変換してカレンダーに表示
+ * LocalExamSchedule を CalendarEvent に変換してカレンダーに表示
  */
 export function generateExamCalendarEvents(
-  exams: ExamSchedule[],
+  exams: LocalExamSchedule[],
   uid: string
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
 
   for (const exam of exams) {
+    const url = getExamSearchUrl(exam.name);
+
     // 試験日
     events.push({
       id: `exam_${exam.id}_date`,
-      title: `📝 ${exam.name}`,
+      title: `${exam.name}`,
       type: 'event',
-      date: formatTimestamp(exam.examDate),
+      date: exam.examDate,
       startTime: '09:00',
       endTime: '17:00',
+      isAllDay: true,
       color: EXAM_COLOR,
       createdBy: uid,
-      createdAt: Timestamp.now(),
+      createdAt: null,
       calendarId: '__exam__',
       members: [uid],
-    });
-
-    // 申込み開始日
-    events.push({
-      id: `exam_${exam.id}_appstart`,
-      title: `📋 ${exam.name} 申込開始`,
-      type: 'event',
-      date: formatTimestamp(exam.applicationStart),
-      startTime: '00:00',
-      endTime: '23:59',
-      color: '#3498db',
-      createdBy: uid,
-      createdAt: Timestamp.now(),
-      calendarId: '__exam__',
-      members: [uid],
+      url,
     });
 
     // 申込み締切日
     events.push({
       id: `exam_${exam.id}_deadline`,
-      title: `🔴 ${exam.name} 申込締切`,
+      title: `${exam.name} 申込締切`,
       type: 'event',
-      date: formatTimestamp(exam.applicationDeadline),
+      date: exam.applicationDeadline,
       startTime: '00:00',
       endTime: '23:59',
+      isAllDay: true,
       color: DEADLINE_COLOR,
       createdBy: uid,
-      createdAt: Timestamp.now(),
+      createdAt: null,
       calendarId: '__exam__',
       members: [uid],
+      url,
     });
   }
 
   return events;
 }
 
-function formatTimestamp(ts: Timestamp): string {
-  return format(ts.toDate(), 'yyyy-MM-dd');
-}
-
 /**
  * 試験日までの残り日数を計算
  */
-export function getDaysUntilExam(examDate: Timestamp): number {
+export function getDaysUntilExam(examDate: string): number {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const target = examDate.toDate();
+  const target = new Date(examDate);
   target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }

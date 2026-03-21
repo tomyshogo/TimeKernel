@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { RecurrenceRule, RecurrenceFrequency } from '../../types';
+import { DatePicker } from '../ui/DateTimePicker';
 
 interface Props {
   value?: RecurrenceRule;
@@ -114,11 +115,10 @@ export function RecurrenceSelector({ value, onChange }: Props) {
             </Text>
           </TouchableOpacity>
           {showUntil && (
-            <TextInput
-              style={styles.untilInput}
+            <DatePicker
               value={value.until || ''}
-              onChangeText={(t) => onChange({ ...value, until: t })}
-              placeholder="2026-12-31"
+              onChange={(d) => onChange({ ...value, until: d })}
+              placeholder="終了日を選択"
             />
           )}
         </View>

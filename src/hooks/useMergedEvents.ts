@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { CalendarEvent, Timetable, ExamSchedule } from '../types';
+import { CalendarEvent, Timetable } from '../types';
+import { LocalExamSchedule } from '../data/examData';
 import { generateTimetableEvents } from '../utils/timetableHelpers';
 import { expandRecurringEvents } from '../utils/recurrence';
 import { generateExamCalendarEvents } from '../utils/examHelpers';
@@ -9,7 +10,7 @@ export function useMergedEvents(
   firestoreEvents: CalendarEvent[],
   timetables: Timetable[],
   month: Date,
-  examSchedules: ExamSchedule[] = []
+  examSchedules: LocalExamSchedule[] = []
 ) {
   const uid = useAuthStore((s) => s.uid);
   const periods = useAuthStore((s) => s.settings.periods);

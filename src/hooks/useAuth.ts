@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { subscribeToAuth } from '../services/auth';
 import { getOrCreateUser, getUserSettings } from '../services/userService';
+import { subscribeToEventQueue } from '../services/eventQueueService';
 
 export function useAuth() {
   const {
@@ -9,8 +10,16 @@ export function useAuth() {
     setUid, setLoading, setAuthenticated, setIsNewUser, setProfile, setSettings,
   } = useAuthStore();
 
+  const queueUnsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (user) => {
+      // 前回のキュー監視を解除
+      if (queueUnsubRef.current) {
+        queueUnsubRef.current();
+        queueUnsubRef.current = null;
+      }
+
       if (user) {
         setUid(user.uid);
         setAuthenticated(true);
@@ -20,6 +29,8 @@ export function useAuth() {
           setIsNewUser(isNew);
           const userSettings = await getUserSettings(user.uid);
           setSettings(userSettings);
+          // MCPキュー監視を開始
+          queueUnsubRef.current = subscribeToEventQueue(user.uid);
         } catch (error) {
           console.warn('Failed to load user data:', error);
           setIsNewUser(true);
@@ -33,7 +44,10 @@ export function useAuth() {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (queueUnsubRef.current) queueUnsubRef.current();
+    };
   }, []);
 
   return { uid, isLoading, isAuthenticated, isNewUser, profile, settings };

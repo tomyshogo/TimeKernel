@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
+import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Card } from '../src/components/ui/Card';
 import { useAuthStore } from '../src/stores/authStore';
 import {
@@ -17,6 +20,134 @@ import {
 } from '../src/services/studyService';
 
 type Period = 'today' | 'week' | 'month';
+
+const CHART_WIDTH = Dimensions.get('window').width - 64;
+const CHART_HEIGHT = 160;
+const CHART_PADDING = { top: 20, right: 16, bottom: 28, left: 50 };
+
+function StudyChart({ byDate, period }: { byDate: Record<string, number>; period: Period }) {
+  const data = useMemo(() => {
+    const now = new Date();
+    const days: { date: string; label: string; minutes: number }[] = [];
+
+    if (period === 'month') {
+      // 今月の1日〜末日
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(year, month, day);
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isWeekMark = day === 1 || (day % 7 === 1 && day + 6 < daysInMonth);
+        const label = isWeekMark || day === daysInMonth ? `${month + 1}/${day}` : '';
+        days.push({ date: dateStr, label, minutes: byDate[dateStr] || 0 });
+      }
+    } else {
+      const numDays = period === 'today' ? 1 : 7;
+      for (let i = numDays - 1; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = d.toISOString().split('T')[0];
+        days.push({
+          date: dateStr,
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          minutes: byDate[dateStr] || 0,
+        });
+      }
+    }
+    return days;
+  }, [byDate, period]);
+
+  if (data.length <= 1) return null;
+
+  const maxMinutes = Math.max(...data.map((d) => d.minutes), 1);
+  const plotW = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
+  const plotH = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+
+  // Y軸のグリッド線（均等4分割、きれいな数値に丸める）
+  const tickCount = 4;
+  const rawStep = maxMinutes / tickCount;
+  const step = Math.max(rawStep <= 10 ? Math.ceil(rawStep / 5) * 5 : Math.ceil(rawStep / 10) * 10, 5);
+  const adjustedMax = step * tickCount;
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, i) => i * step);
+
+  const points = data.map((d, i) => ({
+    x: CHART_PADDING.left + (i / Math.max(data.length - 1, 1)) * plotW,
+    y: CHART_PADDING.top + plotH - (d.minutes / adjustedMax) * plotH,
+    ...d,
+  }));
+
+  const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(' ');
+
+  return (
+    <View style={styles.chartContainer}>
+      <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+        {/* グリッド線 */}
+        {yTicks.map((tick) => {
+          const y = CHART_PADDING.top + plotH - (tick / adjustedMax) * plotH;
+          return (
+            <React.Fragment key={tick}>
+              <Line
+                x1={CHART_PADDING.left}
+                y1={y}
+                x2={CHART_WIDTH - CHART_PADDING.right}
+                y2={y}
+                stroke="#f0f2f5"
+                strokeWidth={1}
+              />
+              <SvgText
+                x={CHART_PADDING.left - 10}
+                y={y - 6}
+                fill="#95a5a6"
+                fontSize={9}
+                textAnchor="end"
+                letterSpacing={2}
+              >
+                {String(tick).padStart(3, ' ')}分
+              </SvgText>
+            </React.Fragment>
+          );
+        })}
+
+        {/* 折れ線 */}
+        <Polyline
+          points={polylinePoints}
+          fill="none"
+          stroke="#3498db"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {/* データポイント */}
+        {points.map((p, i) => (
+          <React.Fragment key={i}>
+            {p.minutes > 0 && (
+              <Circle
+                cx={p.x}
+                cy={p.y}
+                r={3.5}
+                fill="#3498db"
+                stroke="#fff"
+                strokeWidth={2}
+              />
+            )}
+            {p.label !== '' && (
+              <SvgText
+                x={p.x}
+                y={CHART_HEIGHT - 4}
+                fill="#95a5a6"
+                fontSize={9}
+                textAnchor="middle"
+              >
+                {p.label}
+              </SvgText>
+            )}
+          </React.Fragment>
+        ))}
+      </Svg>
+    </View>
+  );
+}
 
 export default function StudyStatsScreen() {
   const uid = useAuthStore((s) => s.uid);
@@ -47,8 +178,7 @@ export default function StudyStatsScreen() {
         break;
       }
       case 'month': {
-        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        startDate = monthAgo.toISOString().split('T')[0];
+        startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         break;
       }
     }
@@ -75,6 +205,13 @@ export default function StudyStatsScreen() {
     { key: 'week', label: '今週' },
     { key: 'month', label: '今月' },
   ];
+
+  const avgMinutes = useMemo(() => {
+    if (!summary || period === 'today') return null;
+    const now = new Date();
+    const divisor = period === 'week' ? 7 : new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return Math.round(summary.totalMinutes / divisor);
+  }, [summary, period]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -107,46 +244,74 @@ export default function StudyStatsScreen() {
         </Card>
       ) : (
         <>
-          <Card>
-            <Text style={styles.sectionTitle}>合計勉強時間</Text>
-            <Text style={styles.totalTime}>
-              {formatMinutes(summary.totalMinutes)}
-            </Text>
-          </Card>
+          {/* 合計・平均 */}
+          <Animated.View entering={FadeInDown.duration(300).springify()}>
+            <Card>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>合計</Text>
+                  <Text style={styles.totalTime}>
+                    {formatMinutes(summary.totalMinutes)}
+                  </Text>
+                </View>
+                {avgMinutes !== null && (
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>1日平均</Text>
+                    <Text style={styles.avgTime}>
+                      {formatMinutes(avgMinutes)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Card>
+          </Animated.View>
 
-          <Card>
-            <Text style={styles.sectionTitle}>科目別</Text>
-            {Object.keys(summary.bySubject).length === 0 ? (
-              <Text style={styles.emptyText}>まだ記録がありません</Text>
-            ) : (
-              Object.entries(summary.bySubject)
-                .sort(([, a], [, b]) => b - a)
-                .map(([subject, minutes]) => {
-                  const ratio =
-                    summary.totalMinutes > 0
-                      ? minutes / summary.totalMinutes
-                      : 0;
-                  return (
-                    <View key={subject} style={styles.subjectRow}>
-                      <View style={styles.subjectInfo}>
-                        <Text style={styles.subjectName}>{subject}</Text>
-                        <Text style={styles.subjectTime}>
-                          {formatMinutes(minutes)}
-                        </Text>
+          {/* 折れ線グラフ */}
+          {period !== 'today' && (
+            <Animated.View entering={FadeInDown.delay(60).duration(300).springify()}>
+              <Card>
+                <Text style={styles.sectionTitle}>日別の勉強時間</Text>
+                <StudyChart byDate={summary.byDate} period={period} />
+              </Card>
+            </Animated.View>
+          )}
+
+          {/* 科目別 */}
+          <Animated.View entering={FadeInDown.delay(120).duration(300).springify()}>
+            <Card>
+              <Text style={styles.sectionTitle}>科目別</Text>
+              {Object.keys(summary.bySubject).length === 0 ? (
+                <Text style={styles.emptyText}>まだ記録がありません</Text>
+              ) : (
+                Object.entries(summary.bySubject)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([subject, minutes]) => {
+                    const ratio =
+                      summary.totalMinutes > 0
+                        ? minutes / summary.totalMinutes
+                        : 0;
+                    return (
+                      <View key={subject} style={styles.subjectRow}>
+                        <View style={styles.subjectInfo}>
+                          <Text style={styles.subjectName}>{subject}</Text>
+                          <Text style={styles.subjectTime}>
+                            {formatMinutes(minutes)}
+                          </Text>
+                        </View>
+                        <View style={styles.barContainer}>
+                          <View
+                            style={[
+                              styles.bar,
+                              { width: `${ratio * 100}%` },
+                            ]}
+                          />
+                        </View>
                       </View>
-                      <View style={styles.barContainer}>
-                        <View
-                          style={[
-                            styles.bar,
-                            { width: `${ratio * 100}%` },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  );
-                })
-            )}
-          </Card>
+                    );
+                  })
+              )}
+            </Card>
+          </Animated.View>
         </>
       )}
     </ScrollView>
@@ -195,12 +360,31 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 12,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#95a5a6',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   totalTime: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: '800',
     color: '#3498db',
-    textAlign: 'center',
-    paddingVertical: 16,
+  },
+  avgTime: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2ecc71',
+  },
+  chartContainer: {
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,

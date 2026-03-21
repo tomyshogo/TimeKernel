@@ -8,14 +8,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { WeatherData, WeatherSettings } from '../../types/weather';
+import { WeatherData, WeatherSettings, DEFAULT_WEATHER_SETTINGS } from '../../types/weather';
 import { getClothingSuggestion, getWeatherEmoji, formatTemp } from '../../utils/weatherClothing';
 
 interface Props {
   weather: WeatherData | null;
   isLoading: boolean;
   error: string | null;
-  settings: WeatherSettings;
+  settings?: WeatherSettings;
   onRefresh: () => void;
 }
 
@@ -31,7 +31,13 @@ function getGradient(icon: string): [string, string] {
   return ['#89f7fe', '#66a6ff'];
 }
 
-export function WeatherCard({ weather, isLoading, error, settings, onRefresh }: Props) {
+export function WeatherCard({
+  weather,
+  isLoading,
+  error,
+  settings = DEFAULT_WEATHER_SETTINGS,
+  onRefresh,
+}: Props) {
   const scale = useSharedValue(1);
 
   const animStyle = useAnimatedStyle(() => ({

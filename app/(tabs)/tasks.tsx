@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
@@ -189,8 +190,17 @@ export default function TasksScreen() {
                     color: '#e74c3c',
                     onPress: () => {
                       if (uid) {
-                        deleteTask(uid, task.id).then(() =>
-                          toast.success('課題を削除しました')
+                        Alert.alert(
+                          '課題を削除',
+                          `「${task.title}」を削除しますか？`,
+                          [
+                            { text: 'キャンセル', style: 'cancel' },
+                            {
+                              text: '削除',
+                              style: 'destructive',
+                              onPress: () => deleteTask(uid, task.id),
+                            },
+                          ]
                         );
                       }
                     },

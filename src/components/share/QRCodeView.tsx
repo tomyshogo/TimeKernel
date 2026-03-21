@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { generateShareLink } from '../../services/shareService';
+import { Ionicons } from '@expo/vector-icons';
+import { generateShareLink, copyShareLink } from '../../services/shareService';
 import { Button } from '../ui/Button';
-import { copyShareLink } from '../../services/shareService';
+import * as Haptics from 'expo-haptics';
 
 interface Props {
   calendarId: string;
@@ -12,6 +13,14 @@ interface Props {
 
 export function QRCodeView({ calendarId, calendarName }: Props) {
   const link = generateShareLink(calendarId);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await copyShareLink(calendarId);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <View style={styles.container}>
@@ -20,12 +29,19 @@ export function QRCodeView({ calendarId, calendarName }: Props) {
       <View style={styles.qrContainer}>
         <QRCode value={link} size={200} />
       </View>
-      <Text style={styles.link}>{link}</Text>
-      <Button
-        title="リンクをコピー"
-        onPress={() => copyShareLink(calendarId)}
-        variant="secondary"
-      />
+      <View style={{ marginTop: 16 }} />
+      {copied ? (
+        <View style={styles.copiedBadge}>
+          <Ionicons name="checkmark-circle" size={18} color="#2ecc71" />
+          <Text style={styles.copiedText}>コピーしました</Text>
+        </View>
+      ) : (
+        <Button
+          title="リンクをコピー"
+          onPress={handleCopy}
+          variant="secondary"
+        />
+      )}
     </View>
   );
 }
@@ -56,10 +72,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  link: {
-    fontSize: 12,
-    color: '#95a5a6',
-    marginTop: 16,
-    marginBottom: 16,
+  copiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eafaf1',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  copiedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2ecc71',
   },
 });

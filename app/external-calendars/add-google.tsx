@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
 import { useAuthStore } from '../../src/stores/authStore';
 import {
   authenticateGoogle,
@@ -78,47 +79,99 @@ export default function AddGoogleCalendarScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* ステップ表示 */}
+      <Animated.View entering={FadeInDown.duration(300).springify()}>
+        <View style={styles.steps}>
+          <View style={[styles.step, styles.stepActive]}>
+            <View style={[styles.stepCircle, calendars.length > 0 && styles.stepDone]}>
+              {calendars.length > 0 ? (
+                <Ionicons name="checkmark" size={14} color="#fff" />
+              ) : (
+                <Text style={styles.stepNumber}>1</Text>
+              )}
+            </View>
+            <Text style={styles.stepLabel}>ログイン</Text>
+          </View>
+          <View style={[styles.stepLine, calendars.length > 0 && styles.stepLineDone]} />
+          <View style={styles.step}>
+            <View style={[styles.stepCircle, calendars.length > 0 && styles.stepActive && styles.stepCircleActive]}>
+              <Text style={[styles.stepNumber, calendars.length > 0 && styles.stepNumberActive]}>2</Text>
+            </View>
+            <Text style={styles.stepLabel}>選択</Text>
+          </View>
+        </View>
+      </Animated.View>
+
       {calendars.length === 0 ? (
-        <Card>
-          <Text style={styles.sectionTitle}>Google Calendar 連携</Text>
-          <Text style={styles.description}>
-            Googleアカウントにログインして、連携するカレンダーを選択します。
-          </Text>
-          <Button
-            title={loading ? '認証中...' : 'Googleでログイン'}
-            onPress={handleAuth}
-            disabled={loading}
-          />
-          {loading && (
-            <ActivityIndicator
-              size="small"
-              color="#3498db"
-              style={{ marginTop: 12 }}
-            />
-          )}
-        </Card>
-      ) : (
-        <Card>
-          <Text style={styles.sectionTitle}>カレンダーを選択</Text>
-          <Text style={styles.description}>
-            連携するカレンダーをタップしてください
-          </Text>
-          {calendars.map((cal) => (
+        <Animated.View entering={FadeInDown.delay(60).duration(300).springify()}>
+          <Card>
+            <View style={styles.googleHeader}>
+              <View style={styles.googleIconCircle}>
+                <Ionicons name="logo-google" size={28} color="#4285F4" />
+              </View>
+              <Text style={styles.title}>Google Calendar</Text>
+              <Text style={styles.description}>
+                Googleアカウントにログインして、カレンダーを同期します
+              </Text>
+            </View>
+
+            <View style={styles.featureList}>
+              <View style={styles.featureItem}>
+                <Ionicons name="sync-outline" size={18} color="#4285F4" />
+                <Text style={styles.featureText}>予定の自動同期</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="notifications-outline" size={18} color="#4285F4" />
+                <Text style={styles.featureText}>変更をリアルタイム反映</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="shield-checkmark-outline" size={18} color="#4285F4" />
+                <Text style={styles.featureText}>安全なOAuth認証</Text>
+              </View>
+            </View>
+
             <TouchableOpacity
-              key={cal.id}
-              style={styles.calendarRow}
-              onPress={() => handleSelectCalendar(cal)}
+              style={[styles.googleButton, loading && styles.googleButtonDisabled]}
+              onPress={handleAuth}
+              disabled={loading}
+              activeOpacity={0.8}
             >
-              <View
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: cal.backgroundColor },
-                ]}
-              />
-              <Text style={styles.calendarName}>{cal.summary}</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color="#fff" />
+                  <Text style={styles.googleButtonText}>Googleでログイン</Text>
+                </>
+              )}
             </TouchableOpacity>
-          ))}
-        </Card>
+          </Card>
+        </Animated.View>
+      ) : (
+        <Animated.View entering={FadeInDown.delay(60).duration(300).springify()}>
+          <Card>
+            <View style={styles.selectHeader}>
+              <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
+              <Text style={styles.selectTitle}>ログイン完了</Text>
+            </View>
+            <Text style={styles.selectDesc}>
+              連携するカレンダーをタップしてください
+            </Text>
+            {calendars.map((cal, i) => (
+              <Animated.View key={cal.id} entering={FadeInDown.delay(i * 50).duration(200)}>
+                <TouchableOpacity
+                  style={styles.calendarRow}
+                  onPress={() => handleSelectCalendar(cal)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.colorDot, { backgroundColor: cal.backgroundColor }]} />
+                  <Text style={styles.calendarName}>{cal.summary}</Text>
+                  <Ionicons name="add-circle-outline" size={22} color="#4285F4" />
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </Card>
+        </Animated.View>
       )}
     </ScrollView>
   );
@@ -133,23 +186,143 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 16,
+  // Steps
+  steps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    gap: 0,
+  },
+  step: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  stepActive: {},
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepCircleActive: {
+    backgroundColor: '#4285F4',
+  },
+  stepDone: {
+    backgroundColor: '#2ecc71',
+  },
+  stepNumber: {
+    fontSize: 13,
     fontWeight: '700',
+    color: '#95a5a6',
+  },
+  stepNumberActive: {
+    color: '#fff',
+  },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 8,
+    marginBottom: 18,
+  },
+  stepLineDone: {
+    backgroundColor: '#2ecc71',
+  },
+  // Login card
+  googleHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  googleIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f0f4ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
     color: '#2c3e50',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   description: {
     fontSize: 13,
     color: '#7f8c8d',
-    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  featureList: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 8,
+  },
+  featureText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#4285F4',
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#4285F4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  // Select card
+  selectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  selectTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2ecc71',
+  },
+  selectDesc: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    marginBottom: 12,
   },
   calendarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f0f2f5',
   },
   colorDot: {
     width: 14,
@@ -158,6 +331,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   calendarName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '600',
     color: '#2c3e50',

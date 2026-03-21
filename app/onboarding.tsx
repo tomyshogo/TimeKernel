@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAuthStore } from '../src/stores/authStore';
-import { getOrCreateUser, updateUserEmail } from '../src/services/userService';
+import { getOrCreateUser, updateUserEmail, updateUserName } from '../src/services/userService';
 import { createCalendar } from '../src/services/calendarService';
 
 export default function OnboardingScreen() {
@@ -26,6 +26,9 @@ export default function OnboardingScreen() {
 
     try {
       const { profile: userProfile } = await getOrCreateUser(uid, name.trim());
+
+      // Firestoreに名前を確実に保存
+      await updateUserName(uid, name.trim());
 
       if (email.trim()) {
         await updateUserEmail(uid, email.trim());

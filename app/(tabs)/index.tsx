@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Text, Alert, Modal, Pressable, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { MonthView } from '../../src/components/calendar/MonthView';
 import { WeekView } from '../../src/components/calendar/WeekView';
 import { DayView } from '../../src/components/calendar/DayView';
@@ -8,22 +9,23 @@ import { ThreeDayView } from '../../src/components/calendar/ThreeDayView';
 import { AgendaView } from '../../src/components/calendar/AgendaView';
 import { DayDetail } from '../../src/components/calendar/DayDetail';
 import { ViewSwitcher } from '../../src/components/calendar/ViewSwitcher';
-import { QuickInputBar } from '../../src/components/calendar/QuickInputBar';
-import { WeatherCard } from '../../src/components/weather/WeatherCard';
+import { DashboardSummary } from '../../src/components/dashboard/DashboardSummary';
 import { useEvents } from '../../src/hooks/useEvents';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTimetables } from '../../src/hooks/useTimetables';
 import { useMergedEvents } from '../../src/hooks/useMergedEvents';
-import { useDragAndDrop } from '../../src/hooks/useDragAndDrop';
-import { useWeather } from '../../src/hooks/useWeather';
 import { useExamSchedules } from '../../src/hooks/useExamSchedules';
+import { useExternalCalendarSync } from '../../src/hooks/useExternalCalendarSync';
 import { useUIStore } from '../../src/stores/uiStore';
-import { updateEvent, addEvent } from '../../src/services/eventService';
+import { addEvent, deleteEvent } from '../../src/services/eventService';
+import { cancelEventNotifications } from '../../src/services/notificationService';
 import { useCalendars } from '../../src/hooks/useCalendars';
 import { QuickEventSheet } from '../../src/components/event/QuickEventSheet';
+import { SmartInputBar } from '../../src/components/calendar/SmartInputBar';
 import { scheduleEventReminder } from '../../src/services/notificationService';
+import { ParsedEvent } from '../../src/services/naturalLanguageParser';
 import { CalendarEventInput } from '../../src/types';
-import { DashboardSummary } from '../../src/components/dashboard/DashboardSummary';
+import { EVENT_COLORS } from '../../src/utils/constants';
 import {
   addMonths,
   subMonths,
@@ -31,10 +33,10 @@ import {
   addWeeks,
   subWeeks,
   formatDate,
+  formatDisplayDate,
   parseDate,
 } from '../../src/utils/dateHelpers';
 import { CalendarEvent } from '../../src/types';
-import type { ParsedEvent } from '../../src/utils/naturalLanguageParser';
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -43,19 +45,40 @@ export default function CalendarScreen() {
     selectedDate,
     currentMonth,
     viewType,
+    showTimetable,
     setSelectedDate,
     setCurrentMonth,
     setViewType,
+    setShowTimetable,
   } = useUIStore();
-  const weatherSettings = useAuthStore((s) => s.settings.weather);
-  const { events: firestoreEvents } = useEvents(uid, currentMonth);
+  useExternalCalendarSync();
+  const { events: allEvents } = useEvents(uid, currentMonth);
+  const { calendars, selectedCalendarIds } = useCalendars();
+  const filteredEvents = useMemo(() => {
+    if (selectedCalendarIds.length === 0) return allEvents;
+    return allEvents.filter((e) => selectedCalendarIds.includes(e.calendarId));
+  }, [allEvents, selectedCalendarIds]);
   const { timetables } = useTimetables();
   const { exams: examSchedules } = useExamSchedules();
-  const mergedEvents = useMergedEvents(firestoreEvents, timetables, currentMonth, examSchedules);
-  const { weather, isLoading: weatherLoading, error: weatherError, refresh: weatherRefresh } = useWeather(weatherSettings);
-  const { calendars, selectedCalendarIds } = useCalendars();
+  const mergedEvents = useMergedEvents(filteredEvents, showTimetable ? timetables : [], currentMonth, examSchedules);
   const notifSettings = useAuthStore((s) => s.settings.notifications);
   const [showQuickSheet, setShowQuickSheet] = useState(false);
+  const [dayDetailVisible, setDayDetailVisible] = useState(false);
+  const lastTapRef = useRef<{ date: string; time: number }>({ date: '', time: 0 });
+
+  const handleSelectDate = useCallback((date: string) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last.date === date && now - last.time < 400) {
+      // ダブルタップ → 詳細モーダル
+      setDayDetailVisible(true);
+      lastTapRef.current = { date: '', time: 0 };
+    } else {
+      // シングルタップ → 選択のみ
+      setSelectedDate(date);
+      lastTapRef.current = { date, time: now };
+    }
+  }, [setSelectedDate]);
 
   const handleQuickEventSubmit = useCallback(
     async (calendarId: string, event: CalendarEventInput) => {
@@ -71,49 +94,91 @@ export default function CalendarScreen() {
     [notifSettings]
   );
 
+  const handleSmartInput = useCallback(
+    async (parsed: ParsedEvent) => {
+      const calId = selectedCalendarIds[0] || calendars[0]?.id;
+      if (!calId || !uid) return;
+
+      const type = parsed.type ?? 'event';
+      const color = EVENT_COLORS[type];
+      const datesToCreate = parsed.dates ?? [parsed.date];
+
+      for (const d of datesToCreate) {
+        const event: CalendarEventInput = {
+          title: parsed.title,
+          type,
+          date: d,
+          startTime: parsed.startTime ?? '09:00',
+          endTime: parsed.endTime ?? '10:00',
+          color,
+          createdBy: uid,
+          ...(parsed.recurrence && !parsed.dates ? { recurrence: parsed.recurrence } : {}),
+        };
+        const eventId = await addEvent(calId, event);
+        if (notifSettings?.enabled) {
+          await scheduleEventReminder(
+            { ...event, id: eventId, calendarId: calId, members: [], createdAt: null as any },
+            notifSettings.reminderMinutes,
+            notifSettings
+          );
+        }
+      }
+    },
+    [uid, selectedCalendarIds, calendars, notifSettings]
+  );
+
   const handleEventPress = (event: CalendarEvent) => {
     if (event.id.startsWith('timetable_')) return;
-    if (event.id.startsWith('exam_')) {
-      const examId = event.id.split('_')[1];
-      router.push(`/exam/${examId}`);
-      return;
-    }
+    if (event.id.startsWith('exam_')) return;
     router.push(`/event/${event.id}?calendarId=${event.calendarId}`);
   };
 
-  const { dragState, handleLongPress, updateDrag, endDrag } = useDragAndDrop({
-    onMove: async (eventId, calendarId, newDate, newStartTime, newEndTime) => {
-      await updateEvent(calendarId, eventId, {
-        date: newDate,
-        startTime: newStartTime,
-        endTime: newEndTime,
-      });
+  const handleDeleteEvent = useCallback(
+    async (event: CalendarEvent) => {
+      await cancelEventNotifications(event.id);
+      await deleteEvent(event.calendarId, event.id);
     },
-    onCopy: async (event, newDate, newStartTime, newEndTime) => {
-      await addEvent(event.calendarId, {
-        title: event.title,
-        type: event.type,
-        date: newDate,
-        startTime: newStartTime,
-        endTime: newEndTime,
-        color: event.color,
-        createdBy: event.createdBy,
-      });
-    },
-  });
+    []
+  );
 
-  const handleQuickInput = useCallback(
-    (parsed: ParsedEvent) => {
-      const params = new URLSearchParams({
-        date: parsed.date,
-        title: parsed.title,
-        type: parsed.type,
+  const handleSmartDelete = useCallback(
+    async (parsed: ParsedEvent) => {
+      const targetDates = parsed.dates ?? [parsed.date];
+      const titleLower = parsed.title.toLowerCase();
+
+      // 対象イベントを検索
+      const matchingEvents = mergedEvents.filter((e) => {
+        if (e.id.startsWith('timetable_') || e.id.startsWith('exam_')) return false;
+        const titleMatch = e.title.toLowerCase().includes(titleLower);
+        const dateMatch = targetDates.includes(e.date);
+        return titleMatch && dateMatch;
       });
-      if (parsed.startTime) params.set('startTime', parsed.startTime);
-      if (parsed.endTime) params.set('endTime', parsed.endTime);
-      router.push(`/event/new?${params.toString()}`);
+
+      if (matchingEvents.length === 0) {
+        Alert.alert('該当なし', `「${parsed.title}」に一致する予定が見つかりませんでした`);
+        return;
+      }
+
+      Alert.alert(
+        '予定を削除',
+        `「${parsed.title}」を含む${matchingEvents.length}件の予定を削除しますか？`,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          {
+            text: `${matchingEvents.length}件を削除`,
+            style: 'destructive',
+            onPress: async () => {
+              for (const ev of matchingEvents) {
+                await cancelEventNotifications(ev.id);
+                await deleteEvent(ev.calendarId, ev.id);
+              }
+              Alert.alert('削除完了', `${matchingEvents.length}件の予定を削除しました`);
+            },
+          },
+        ]
+      );
     },
-    [router]
+    [mergedEvents]
   );
 
   const renderView = () => {
@@ -132,10 +197,6 @@ export default function CalendarScreen() {
               const next = addWeeks(parseDate(selectedDate), 1);
               setSelectedDate(formatDate(next));
             }}
-            enableDrag
-            onDragStart={handleLongPress}
-            onDragUpdate={(x, y) => updateDrag(x, y, null, null)}
-            onDragEnd={endDrag}
           />
         );
       case 'day':
@@ -181,53 +242,67 @@ export default function CalendarScreen() {
           />
         );
       default:
-        return (
-          <>
-            <MonthView
-              currentMonth={currentMonth}
-              selectedDate={selectedDate}
-              events={mergedEvents}
-              onSelectDate={setSelectedDate}
-              onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            />
-            <View style={styles.detail}>
-              <DayDetail
-                date={selectedDate}
-                events={mergedEvents}
-                onEventPress={handleEventPress}
-              />
-            </View>
-          </>
-        );
+        return null;
     }
   };
 
+  const isMonthView = viewType === 'month';
+
   return (
     <View style={styles.container}>
-      <DashboardSummary
-        uid={uid}
-        events={mergedEvents}
-        selectedDate={selectedDate}
-      />
-      <WeatherCard
-        weather={weather}
-        isLoading={weatherLoading}
-        error={weatherError}
-        settings={weatherSettings}
-        onRefresh={weatherRefresh}
-      />
-      <QuickInputBar onParsed={handleQuickInput} />
+      <DashboardSummary uid={uid} events={mergedEvents} selectedDate={selectedDate} />
+      {uid && calendars.length > 0 && (
+        <SmartInputBar onSubmit={handleSmartInput} onDelete={handleSmartDelete} />
+      )}
       <ViewSwitcher current={viewType} onChange={setViewType} />
-      <View style={styles.content}>{renderView()}</View>
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setShowQuickSheet(true)}
-        onLongPress={() => router.push(`/event/new?date=${selectedDate}`)}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {isMonthView ? (
+        <MonthView
+          currentMonth={currentMonth}
+          selectedDate={selectedDate}
+          events={mergedEvents}
+          onSelectDate={handleSelectDate}
+          onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          onChangeMonth={setCurrentMonth}
+          showTimetable={showTimetable}
+          onToggleTimetable={() => setShowTimetable(!showTimetable)}
+        />
+      ) : (
+        <View style={styles.content}>{renderView()}</View>
+      )}
+
+      {/* 日付詳細モーダル */}
+      <Modal visible={dayDetailVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDayDetailVisible(false)}>
+        <SafeAreaView style={styles.dayModalContainer}>
+          <View style={styles.dayModalHeader}>
+            <TouchableOpacity onPress={() => setDayDetailVisible(false)} hitSlop={8}>
+              <Ionicons name="close" size={24} color="#2c3e50" />
+            </TouchableOpacity>
+            <Text style={styles.dayModalTitle}>{formatDisplayDate(parseDate(selectedDate))}</Text>
+            <TouchableOpacity onPress={() => { setDayDetailVisible(false); router.push(`/event/new?date=${selectedDate}`); }} hitSlop={8}>
+              <Ionicons name="add" size={24} color="#3498db" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.dayModalScroll} contentContainerStyle={styles.dayModalContent}>
+            <DayDetail
+              date={selectedDate}
+              events={mergedEvents}
+              onEventPress={(event) => { setDayDetailVisible(false); handleEventPress(event); }}
+              onDeleteEvent={handleDeleteEvent}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      {!showQuickSheet && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowQuickSheet(true)}
+          onLongPress={() => router.push(`/event/new?date=${selectedDate}`)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
       {uid && calendars.length > 0 && (
         <QuickEventSheet
           visible={showQuickSheet}
@@ -247,11 +322,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 80,
+  },
   content: {
     flex: 1,
   },
-  detail: {
+  dayModalContainer: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  dayModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
+  },
+  dayModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  dayModalScroll: {
+    flex: 1,
+  },
+  dayModalContent: {
+    paddingBottom: 40,
   },
   fab: {
     position: 'absolute',

@@ -1,14 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  FadeInRight,
-} from 'react-native-reanimated';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, Pressable, Linking, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CalendarEvent } from '../../types';
 import { EVENT_TYPE_LABELS } from '../../utils/constants';
+import { useAuthStore } from '../../stores/authStore';
 
 interface Props {
   event: CalendarEvent;
@@ -16,28 +12,50 @@ interface Props {
   index?: number;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const TYPE_ICONS: Record<string, string> = {
   class: 'school-outline',
   event: 'calendar-outline',
   shift: 'wallet-outline',
 };
 
-export function EventCard({ event, onPress, index = 0 }: Props) {
-  const scale = useSharedValue(1);
+const AVATAR_STORAGE_KEY = 'user_avatar_uri';
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+function CreatorAvatar({ event }: { event: CalendarEvent }) {
+  const uid = useAuthStore((s) => s.uid);
+  const profile = useAuthStore((s) => s.profile);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
+  const isMyEvent = event.createdBy === uid;
+
+  useEffect(() => {
+    if (isMyEvent) {
+      AsyncStorage.getItem(AVATAR_STORAGE_KEY).then((uri) => setAvatarUri(uri));
+    }
+  }, [isMyEvent]);
+
+  // 時間割・試験は表示しない
+  if (event.id.startsWith('timetable_') || event.id.startsWith('exam_')) return null;
+
+  if (isMyEvent && avatarUri) {
+    return <Image source={{ uri: avatarUri }} style={styles.creatorAvatar} />;
+  }
+
+  const initial = isMyEvent
+    ? (profile?.name?.charAt(0) || '?')
+    : (event.createdBy?.charAt(0) || '?').toUpperCase();
 
   return (
-    <AnimatedPressable
-      style={[styles.container, animatedStyle]}
+    <View style={[styles.creatorAvatarFallback, { backgroundColor: isMyEvent ? '#3498db' : '#95a5a6' }]}>
+      <Text style={styles.creatorAvatarText}>{initial}</Text>
+    </View>
+  );
+}
+
+export function EventCard({ event, onPress }: Props) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 200 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 200 }); }}
-      entering={FadeInRight.delay(index * 50).duration(300).springify()}
     >
       <View style={[styles.colorAccent, { backgroundColor: event.color }]}>
         <Ionicons
@@ -49,6 +67,7 @@ export function EventCard({ event, onPress, index = 0 }: Props) {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
+            <CreatorAvatar event={event} />
             <Text style={styles.title} numberOfLines={1}>{event.title}</Text>
             {event.hasPendingWrites && (
               <View style={styles.pendingBadge}>
@@ -65,11 +84,28 @@ export function EventCard({ event, onPress, index = 0 }: Props) {
         <View style={styles.timeRow}>
           <Ionicons name="time-outline" size={13} color="#95a5a6" />
           <Text style={styles.time}>
-            {event.startTime} - {event.endTime}
+            {event.isAllDay
+              ? (event.endDate && event.endDate !== event.date
+                ? `終日 (${event.date} 〜 ${event.endDate})`
+                : '終日')
+              : `${event.startTime} - ${event.endTime}`}
           </Text>
         </View>
+        {event.url && (
+          <TouchableOpacity
+            style={styles.urlRow}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              Linking.openURL(event.url!);
+            }}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="link-outline" size={13} color="#3498db" />
+            <Text style={styles.urlText} numberOfLines={1}>公式サイトを検索</Text>
+          </TouchableOpacity>
+        )}
       </View>
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -87,6 +123,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.03)',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   colorAccent: {
     width: 36,
@@ -142,5 +181,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#7f8c8d',
     fontWeight: '500',
+  },
+  urlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  urlText: {
+    fontSize: 12,
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  creatorAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  creatorAvatarFallback: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creatorAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

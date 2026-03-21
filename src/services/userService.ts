@@ -23,8 +23,16 @@ export async function getOrCreateUser(
     return { profile: snap.data() as UserProfile, isNewUser: false };
   }
 
+  // 名前がない場合はドキュメントを作成せず新規ユーザーとして返す
+  if (!name) {
+    return {
+      profile: { name: '', calendars: [] },
+      isNewUser: true,
+    };
+  }
+
   const profile: UserProfile = {
-    name: name || '',
+    name,
     calendars: [],
   };
   await setDoc(usersRef(uid), profile);
@@ -51,13 +59,38 @@ export async function updateUserEmail(uid: string, email: string): Promise<void>
 export async function getUserSettings(uid: string): Promise<UserSettings> {
   const snap = await getDoc(settingsRef(uid));
   if (snap.exists()) {
-    return snap.data() as UserSettings;
+    const data = snap.data() as Partial<UserSettings>;
+    return {
+      periods: data.periods ?? DEFAULT_PERIODS,
+      nightShift: {
+        ...DEFAULT_NIGHT_SHIFT,
+        ...data.nightShift,
+      },
+      notifications: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...data.notifications,
+        eventTypes: {
+          ...DEFAULT_NOTIFICATION_SETTINGS.eventTypes,
+          ...data.notifications?.eventTypes,
+        },
+        quietHours: {
+          ...DEFAULT_NOTIFICATION_SETTINGS.quietHours,
+          ...data.notifications?.quietHours,
+        },
+      },
+      weather: {
+        ...DEFAULT_WEATHER_SETTINGS,
+        ...data.weather,
+      },
+      alexaSync: data.alexaSync ?? false,
+    };
   }
   return {
     periods: DEFAULT_PERIODS,
     nightShift: DEFAULT_NIGHT_SHIFT,
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
     weather: DEFAULT_WEATHER_SETTINGS,
+    alexaSync: false,
   };
 }
 

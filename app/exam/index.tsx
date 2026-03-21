@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   Switch,
+  TouchableOpacity,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +24,7 @@ import {
 } from '../../src/services/examService';
 import * as Haptics from 'expo-haptics';
 
-const CATEGORIES: ExamCategory[] = ['language', 'it', 'business', 'law', 'civil_service'];
+const CATEGORIES: ExamCategory[] = ['language', 'it', 'business', 'law', 'civil_service', 'medical', 'construction', 'education'];
 
 const CATEGORY_ICONS: Record<ExamCategory, string> = {
   language: 'language-outline',
@@ -30,6 +32,9 @@ const CATEGORY_ICONS: Record<ExamCategory, string> = {
   business: 'briefcase-outline',
   law: 'document-text-outline',
   civil_service: 'people-outline',
+  medical: 'medkit-outline',
+  construction: 'construct-outline',
+  education: 'school-outline',
 };
 
 const CATEGORY_COLORS: Record<ExamCategory, string> = {
@@ -38,6 +43,9 @@ const CATEGORY_COLORS: Record<ExamCategory, string> = {
   business: '#e67e22',
   law: '#e74c3c',
   civil_service: '#1abc9c',
+  medical: '#e91e63',
+  construction: '#795548',
+  education: '#4caf50',
 };
 
 export default function ExamListScreen() {
@@ -54,15 +62,46 @@ export default function ExamListScreen() {
     }
   };
 
-  const subscribedCount = subs.exams.length;
+  const [expandedCategories, setExpandedCategories] = useState<Set<ExamCategory>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const validKeys = new Set(EXAM_MASTERS.map((e) => e.key));
+  const subscribedCount = subs.exams.filter((k) => validKeys.has(k)).length;
+
+  const filteredMasters = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.trim().toLowerCase();
+    return EXAM_MASTERS.filter((e) =>
+      e.name.toLowerCase().includes(q) ||
+      e.key.toLowerCase().includes(q) ||
+      EXAM_CATEGORY_LABELS[e.category].includes(q)
+    );
+  }, [searchQuery]);
+
+  const toggleCategory = (category: ExamCategory) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerSection}>
         <Text style={styles.header}>資格試験カレンダー</Text>
         <Text style={styles.description}>
-          興味のある資格をONにすると、試験日・申込締切がカレンダーに表示されます
+          興味のある資格をONにすると、{'\n'}試験日・申込締切がカレンダーに表示されます
         </Text>
+        <View style={styles.disclaimer}>
+          <Ionicons name="information-circle-outline" size={14} color="#e74c3c" />
+          <Text style={styles.disclaimerText}>
+            日程は変更される場合があります。最新情報は各試験の公式サイトをご確認下さい。
+          </Text>
+        </View>
         {subscribedCount > 0 && (
           <View style={styles.countBadge}>
             <Ionicons name="checkmark-circle" size={14} color="#2ecc71" />
@@ -71,27 +110,90 @@ export default function ExamListScreen() {
         )}
       </View>
 
-      {CATEGORIES.map((category, catIndex) => {
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={18} color="#95a5a6" />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="資格名で検索..."
+          placeholderTextColor="#b0b8c8"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {filteredMasters ? (
+        <Card>
+          <Text style={styles.searchResultTitle}>
+            検索結果: {filteredMasters.length}件
+          </Text>
+          {filteredMasters.length === 0 ? (
+            <Text style={styles.searchEmpty}>該当する資格が見つかりません</Text>
+          ) : (
+            filteredMasters.map((exam, i) => {
+              const isSubscribed = subs.exams.includes(exam.key);
+              const color = CATEGORY_COLORS[exam.category];
+              const isLast = i === filteredMasters.length - 1;
+              return (
+                <View key={exam.key} style={[styles.examRow, isLast && styles.examRowLast]}>
+                  <View style={styles.examInfo}>
+                    <View style={[styles.searchCategoryDot, { backgroundColor: color }]} />
+                    <Text style={styles.examName}>{exam.name}</Text>
+                    {isSubscribed && (
+                      <Ionicons name="notifications" size={12} color="#3498db" />
+                    )}
+                  </View>
+                  <Switch
+                    value={isSubscribed}
+                    onValueChange={() => handleToggle(exam.key, exam.category, isSubscribed)}
+                    trackColor={{ false: '#e8ecf0', true: color + '50' }}
+                    thumbColor={isSubscribed ? color : '#fff'}
+                  />
+                </View>
+              );
+            })
+          )}
+        </Card>
+      ) : (
+
+      CATEGORIES.map((category, catIndex) => {
         const exams = EXAM_MASTERS.filter((e) => e.category === category);
         const color = CATEGORY_COLORS[category];
         const iconName = CATEGORY_ICONS[category];
 
+        const isExpanded = expandedCategories.has(category);
+        const subscribedInCategory = exams.filter((e) => subs.exams.includes(e.key)).length;
+
         return (
           <Animated.View
             key={category}
-            entering={FadeInDown.delay(catIndex * 80).duration(400).springify()}
+            entering={FadeInDown.delay(catIndex * 60).duration(300).springify()}
           >
             <Card>
-              <View style={styles.categoryHeader}>
+              <TouchableOpacity
+                style={styles.categoryHeader}
+                onPress={() => toggleCategory(category)}
+                activeOpacity={0.7}
+              >
                 <View style={[styles.categoryIcon, { backgroundColor: color + '15' }]}>
                   <Ionicons name={iconName as any} size={18} color={color} />
                 </View>
-                <Text style={styles.categoryTitle}>
-                  {EXAM_CATEGORY_LABELS[category]}
-                </Text>
+                <View style={styles.categoryTitleRow}>
+                  <Text style={styles.categoryTitle}>
+                    {EXAM_CATEGORY_LABELS[category]}
+                  </Text>
+                  {subscribedInCategory > 0 && (
+                    <Text style={[styles.subscribedBadge, { color }]}>{subscribedInCategory}件ON</Text>
+                  )}
+                </View>
                 <Text style={styles.categoryCount}>{exams.length}件</Text>
-              </View>
-              {exams.map((exam, examIndex) => {
+                <Ionicons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#b0b8c8"
+                />
+              </TouchableOpacity>
+              {isExpanded && exams.map((exam, examIndex) => {
                 const isSubscribed = subs.exams.includes(exam.key);
                 const isLast = examIndex === exams.length - 1;
                 return (
@@ -119,7 +221,8 @@ export default function ExamListScreen() {
             </Card>
           </Animated.View>
         );
-      })}
+      })
+      )}
     </ScrollView>
   );
 }
@@ -178,11 +281,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  categoryTitleRow: {
+    flex: 1,
+  },
   categoryTitle: {
     fontSize: 17,
     fontWeight: '800',
     color: '#1a1a2e',
-    flex: 1,
+  },
+  subscribedBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
   categoryCount: {
     fontSize: 12,
@@ -210,5 +320,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#2c3e50',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#e8ecf0',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#2c3e50',
+    paddingVertical: 0,
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7f8c8d',
+    marginBottom: 8,
+  },
+  searchEmpty: {
+    fontSize: 14,
+    color: '#95a5a6',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  searchCategoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  disclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+  },
+  disclaimerText: {
+    fontSize: 11,
+    color: '#e74c3c',
+    lineHeight: 16,
+    flex: 1,
   },
 });

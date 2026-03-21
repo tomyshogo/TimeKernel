@@ -1,0 +1,33 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "ja-JP": {
+          "summary": "大学生向けカレンダーアプリ TimeKernel の音声アシスタント",
+          "examplePhrases": [
+            "アレクサ、タイムカーネルを開いて",
+            "アレクサ、タイムカーネルで今日の予定を教えて",
+            "アレクサ、タイムカーネルで予定を追加して"
+          ],
+          "name": "タイムカーネル",
+          "description": "TimeKernelアプリと連携して、音声で予定の確認・追加、バイト代の確認ができます。"
+        }
+      }
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "arn:aws:lambda:ap-northeast-1:XXXXXXXXXXXX:function:timekernel-alexa"
+        }
+      }
+    },
+    "manifestVersion": "1.0",
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": true,
+      "isChildDirected": false,
+      "isExportCompliant": true,
+      "containsAds": false
+    }
+  }
+}

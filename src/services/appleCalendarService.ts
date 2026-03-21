@@ -1,9 +1,8 @@
 import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import { CalendarEventInput, ExternalCalendar } from '../types';
-import { addEvent } from './eventService';
-import { upsertExternalEventMap, updateSyncTimestamp } from './externalCalendarService';
-import { Timestamp } from 'firebase/firestore';
+import { addEvent, updateEvent, getExternalEventIds } from './eventService';
+import { updateSyncTimestamp } from './externalCalendarService';
 
 /**
  * カレンダー権限を要求する
@@ -80,6 +79,9 @@ export async function syncAppleToTimeKernel(
     endDate
   );
 
+  // イベントドキュメント自体から externalId で重複チェック
+  const existingMap = await getExternalEventIds(targetCalendarId, 'apple');
+
   let importedCount = 0;
   for (const ae of appleEvents) {
     const startDt = new Date(ae.startDate);
@@ -89,7 +91,7 @@ export async function syncAppleToTimeKernel(
     const startTime = `${String(startDt.getHours()).padStart(2, '0')}:${String(startDt.getMinutes()).padStart(2, '0')}`;
     const endTime = `${String(endDt.getHours()).padStart(2, '0')}:${String(endDt.getMinutes()).padStart(2, '0')}`;
 
-    const eventInput: CalendarEventInput = {
+    const eventData: CalendarEventInput = {
       title: ae.title || '(タイトルなし)',
       type: 'event',
       date,
@@ -97,18 +99,17 @@ export async function syncAppleToTimeKernel(
       endTime,
       color: externalCal.color,
       createdBy: uid,
+      externalId: ae.id,
+      externalProvider: 'apple',
     };
 
-    const eventId = await addEvent(targetCalendarId, eventInput);
-    await upsertExternalEventMap(uid, {
-      externalId: ae.id,
-      internalEventId: eventId,
-      calendarId: targetCalendarId,
-      provider: 'apple',
-      lastSynced: Timestamp.now(),
-    });
-
-    importedCount++;
+    const existingEventId = existingMap.get(ae.id);
+    if (existingEventId) {
+      await updateEvent(targetCalendarId, existingEventId, eventData);
+    } else {
+      await addEvent(targetCalendarId, eventData);
+      importedCount++;
+    }
   }
 
   await updateSyncTimestamp(uid, externalCal.id);

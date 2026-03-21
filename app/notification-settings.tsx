@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { useAuthStore } from '../src/stores/authStore';
@@ -50,6 +51,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Animated.View entering={FadeInDown.delay(0 * 60).duration(300).springify()}>
       <Card>
         <Text style={styles.sectionTitle}>通知設定</Text>
 
@@ -61,9 +63,11 @@ export default function NotificationSettingsScreen() {
           />
         </View>
       </Card>
+      </Animated.View>
 
       {notif.enabled && (
         <>
+          <Animated.View entering={FadeInDown.delay(1 * 60).duration(300).springify()}>
           <Card>
             <Text style={styles.sectionTitle}>イベントタイプ別</Text>
 
@@ -106,7 +110,9 @@ export default function NotificationSettingsScreen() {
               />
             </View>
           </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(2 * 60).duration(300).springify()}>
           <Card>
             <Text style={styles.sectionTitle}>リマインダー</Text>
             <Text style={styles.description}>
@@ -125,7 +131,9 @@ export default function NotificationSettingsScreen() {
               <Text style={styles.unit}>分前</Text>
             </View>
           </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(3 * 60).duration(300).springify()}>
           <Card>
             <Text style={styles.sectionTitle}>おやすみ時間</Text>
             <Text style={styles.description}>
@@ -178,6 +186,62 @@ export default function NotificationSettingsScreen() {
               </View>
             )}
           </Card>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(4 * 60).duration(300).springify()}>
+          <Card>
+            <Text style={styles.sectionTitle}>課題の締切通知</Text>
+            <Text style={styles.description}>
+              課題の締切前に通知でお知らせします
+            </Text>
+
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>締切通知を有効にする</Text>
+              <Switch
+                value={notif.taskReminder?.enabled ?? true}
+                onValueChange={(enabled) =>
+                  setNotif({
+                    ...notif,
+                    taskReminder: { ...notif.taskReminder ?? DEFAULT_NOTIFICATION_SETTINGS.taskReminder, enabled },
+                  })
+                }
+              />
+            </View>
+
+            {(notif.taskReminder?.enabled ?? true) && (
+              <>
+                <View style={styles.switchRow}>
+                  <Text style={styles.label}>前日にリマインド</Text>
+                  <Switch
+                    value={notif.taskReminder?.dayBefore ?? true}
+                    onValueChange={(dayBefore) =>
+                      setNotif({
+                        ...notif,
+                        taskReminder: { ...notif.taskReminder ?? DEFAULT_NOTIFICATION_SETTINGS.taskReminder, dayBefore },
+                      })
+                    }
+                  />
+                </View>
+
+                <Text style={styles.label}>締切の何時間前に通知</Text>
+                <View style={styles.row}>
+                  <TextInput
+                    style={styles.input}
+                    value={String(notif.taskReminder?.hoursBeforeDeadline ?? 1)}
+                    onChangeText={(t) => {
+                      const n = parseInt(t, 10);
+                      if (n >= 0) setNotif({
+                        ...notif,
+                        taskReminder: { ...notif.taskReminder ?? DEFAULT_NOTIFICATION_SETTINGS.taskReminder, hoursBeforeDeadline: n },
+                      });
+                    }}
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.unit}>時間前</Text>
+                </View>
+              </>
+            )}
+          </Card>
+          </Animated.View>
         </>
       )}
 

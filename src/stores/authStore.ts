@@ -36,5 +36,31 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
   setIsNewUser: (isNewUser) => set({ isNewUser }),
   setProfile: (profile) => set({ profile }),
-  setSettings: (settings) => set({ settings }),
+  setSettings: (settings) =>
+    set((state) => ({
+      settings: {
+        periods: settings.periods ?? state.settings.periods,
+        nightShift: {
+          ...state.settings.nightShift,
+          ...settings.nightShift,
+        },
+        notifications: {
+          ...state.settings.notifications,
+          ...settings.notifications,
+          eventTypes: {
+            ...state.settings.notifications.eventTypes,
+            ...settings.notifications?.eventTypes,
+          },
+          quietHours: {
+            ...state.settings.notifications.quietHours,
+            ...settings.notifications?.quietHours,
+          },
+        },
+        weather: {
+          ...state.settings.weather,
+          ...settings.weather,
+        },
+        alexaSync: settings.alexaSync ?? state.settings.alexaSync,
+      },
+    })),
 }));

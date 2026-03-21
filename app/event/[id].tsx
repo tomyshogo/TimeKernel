@@ -7,14 +7,13 @@ import { useAuthStore } from '../../src/stores/authStore';
 import {
   updateEvent,
   deleteEvent,
+  getEventById,
 } from '../../src/services/eventService';
 import {
   scheduleEventReminder,
   cancelEventNotifications,
 } from '../../src/services/notificationService';
 import { CalendarEvent, CalendarEventInput } from '../../src/types';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../src/services/firebase';
 
 export default function EditEventScreen() {
   const router = useRouter();
@@ -30,12 +29,20 @@ export default function EditEventScreen() {
 
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!calendarId || !id) return;
-      const snap = await getDoc(
-        doc(db, 'calendars', calendarId, 'events', id)
-      );
-      if (snap.exists()) {
-        setEvent({ id: snap.id, calendarId, ...snap.data() } as CalendarEvent);
+      if (!calendarId || !id) {
+        console.warn('[EditEvent] missing params:', { id, calendarId });
+        setLoading(false);
+        return;
+      }
+      try {
+        const ev = await getEventById(calendarId, id);
+        if (ev) {
+          setEvent(ev);
+        } else {
+          console.warn('[EditEvent] event not found:', { id, calendarId });
+        }
+      } catch (error: any) {
+        console.error('[EditEvent] fetch error:', error.code, error.message);
       }
       setLoading(false);
     };

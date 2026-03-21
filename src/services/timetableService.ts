@@ -1,86 +1,122 @@
-import {
-  collection,
-  doc,
-  addDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  Unsubscribe,
-} from 'firebase/firestore';
-import { db } from './firebase';
+import { randomUUID } from 'expo-crypto';
+import { getDatabase } from './localDatabase';
 import { Timetable, TimetableInput, TimetableSlot } from '../types';
 
-function timetablesCol(uid: string) {
-  return collection(db, 'timetables', uid, 'items');
+// --- Change notification ---
+type Listener = (timetables: Timetable[]) => void;
+const listeners: Set<Listener> = new Set();
+
+function notifyChange(): void {
+  const all = getAllTimetablesSync();
+  listeners.forEach((cb) => cb(all));
+}
+
+function rowToTimetable(row: any): Timetable {
+  return {
+    id: row.id,
+    calendarId: row.calendarId ?? null,
+    isPublic: row.isPublic === 1,
+    slots: row.slots ? JSON.parse(row.slots) : {},
+  };
+}
+
+function getAllTimetablesSync(): Timetable[] {
+  const db = getDatabase();
+  const rows = db.getAllSync('SELECT * FROM timetables') as any[];
+  return rows.map(rowToTimetable);
 }
 
 export async function createTimetable(
-  uid: string,
+  _uid: string,
   input: TimetableInput
 ): Promise<string> {
-  const docRef = await addDoc(timetablesCol(uid), input);
-  return docRef.id;
+  const db = getDatabase();
+  const id = randomUUID();
+  db.runSync(
+    'INSERT INTO timetables (id, calendarId, isPublic, slots) VALUES (?, ?, ?, ?)',
+    [id, input.calendarId ?? null, input.isPublic ? 1 : 0, JSON.stringify(input.slots)]
+  );
+  notifyChange();
+  return id;
 }
 
 export async function getTimetable(
-  uid: string,
+  _uid: string,
   timetableId: string
 ): Promise<Timetable | null> {
-  const snap = await getDoc(doc(db, 'timetables', uid, 'items', timetableId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Timetable;
+  const db = getDatabase();
+  const row = db.getFirstSync('SELECT * FROM timetables WHERE id = ?', [timetableId]) as any;
+  return row ? rowToTimetable(row) : null;
 }
 
-export async function getAllTimetables(uid: string): Promise<Timetable[]> {
-  const snap = await getDocs(timetablesCol(uid));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Timetable);
+export async function getAllTimetables(_uid: string): Promise<Timetable[]> {
+  return getAllTimetablesSync();
 }
 
 export async function updateTimetable(
-  uid: string,
+  _uid: string,
   timetableId: string,
   data: Partial<TimetableInput>
 ): Promise<void> {
-  await updateDoc(doc(db, 'timetables', uid, 'items', timetableId), data);
+  const db = getDatabase();
+  const fields: string[] = [];
+  const values: any[] = [];
+
+  if ('calendarId' in data) {
+    fields.push('calendarId = ?');
+    values.push(data.calendarId ?? null);
+  }
+  if ('isPublic' in data) {
+    fields.push('isPublic = ?');
+    values.push(data.isPublic ? 1 : 0);
+  }
+  if ('slots' in data) {
+    fields.push('slots = ?');
+    values.push(JSON.stringify(data.slots));
+  }
+
+  if (fields.length === 0) return;
+  values.push(timetableId);
+  db.runSync(`UPDATE timetables SET ${fields.join(', ')} WHERE id = ?`, values);
+  notifyChange();
 }
 
 export async function updateSlot(
-  uid: string,
+  _uid: string,
   timetableId: string,
   slotKey: string,
   slot: TimetableSlot | null
 ): Promise<void> {
+  const db = getDatabase();
+  const row = db.getFirstSync('SELECT slots FROM timetables WHERE id = ?', [timetableId]) as any;
+  if (!row) return;
+
+  const slots = JSON.parse(row.slots || '{}');
   if (slot === null) {
-    await updateDoc(doc(db, 'timetables', uid, 'items', timetableId), {
-      [`slots.${slotKey}`]: null,
-    });
+    delete slots[slotKey];
   } else {
-    await updateDoc(doc(db, 'timetables', uid, 'items', timetableId), {
-      [`slots.${slotKey}`]: slot,
-    });
+    slots[slotKey] = slot;
   }
+
+  db.runSync('UPDATE timetables SET slots = ? WHERE id = ?', [JSON.stringify(slots), timetableId]);
+  notifyChange();
 }
 
 export async function deleteTimetable(
-  uid: string,
+  _uid: string,
   timetableId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, 'timetables', uid, 'items', timetableId));
+  const db = getDatabase();
+  db.runSync('DELETE FROM timetables WHERE id = ?', [timetableId]);
+  notifyChange();
 }
 
 export function subscribeToTimetables(
-  uid: string,
+  _uid: string,
   callback: (timetables: Timetable[]) => void
-): Unsubscribe {
-  return onSnapshot(timetablesCol(uid), (snapshot) => {
-    const timetables = snapshot.docs.map(
-      (d) => ({ id: d.id, ...d.data() }) as Timetable
-    );
-    callback(timetables);
-  }, (error) => {
-    console.warn('[subscribeToTimetables]', error.code, error.message);
-    callback([]);
-  });
+): () => void {
+  // 初回データを即座に返す
+  callback(getAllTimetablesSync());
+  listeners.add(callback);
+  return () => listeners.delete(callback);
 }

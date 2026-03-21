@@ -12,6 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
+import { DatePicker, TimePicker } from '../../src/components/ui/DateTimePicker';
 import { useAuthStore } from '../../src/stores/authStore';
 import { updateTask, deleteTask, getAllTasks } from '../../src/services/taskService';
 import {
@@ -177,18 +178,10 @@ export default function EditTaskScreen() {
 
       <Card>
         <Text style={styles.sectionTitle}>締切</Text>
-        <Text style={styles.label}>日付 (YYYY-MM-DD)</Text>
-        <TextInput
-          style={styles.input}
-          value={deadlineDate}
-          onChangeText={setDeadlineDate}
-        />
+        <Text style={styles.label}>日付</Text>
+        <DatePicker value={deadlineDate} onChange={setDeadlineDate} placeholder="日付を選択" />
         <Text style={styles.label}>時刻</Text>
-        <TextInput
-          style={styles.input}
-          value={deadlineTime}
-          onChangeText={setDeadlineTime}
-        />
+        <TimePicker value={deadlineTime} onChange={setDeadlineTime} placeholder="時刻を選択" />
       </Card>
 
       <Card>

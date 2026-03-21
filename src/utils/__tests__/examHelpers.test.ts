@@ -2,33 +2,32 @@ import {
   getDaysUntilExam,
   getDaysLabel,
 } from '../examHelpers';
-import { Timestamp } from 'firebase/firestore';
 
 describe('getDaysUntilExam', () => {
-  const makeTimestamp = (daysFromNow: number): Timestamp => {
+  const makeDateStr = (daysFromNow: number): string => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() + daysFromNow);
-    return Timestamp.fromDate(date);
+    return date.toISOString().split('T')[0];
   };
 
   it('明日の試験 → 1日', () => {
-    const result = getDaysUntilExam(makeTimestamp(1));
+    const result = getDaysUntilExam(makeDateStr(1));
     expect(result).toBe(1);
   });
 
   it('今日の試験 → 0日', () => {
-    const result = getDaysUntilExam(makeTimestamp(0));
+    const result = getDaysUntilExam(makeDateStr(0));
     expect(result).toBe(0);
   });
 
   it('昨日の試験 → -1日', () => {
-    const result = getDaysUntilExam(makeTimestamp(-1));
+    const result = getDaysUntilExam(makeDateStr(-1));
     expect(result).toBe(-1);
   });
 
   it('30日後 → 30日', () => {
-    const result = getDaysUntilExam(makeTimestamp(30));
+    const result = getDaysUntilExam(makeDateStr(30));
     expect(result).toBe(30);
   });
 });

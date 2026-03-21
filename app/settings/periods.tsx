@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, Text } from 'react-native';
+import { StyleSheet, ScrollView, Text, Alert } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Button } from '../../src/components/ui/Button';
 import { PeriodEditor } from '../../src/components/timetable/PeriodEditor';
 import { Card } from '../../src/components/ui/Card';
@@ -19,20 +20,22 @@ export default function PeriodSettingsScreen() {
       const newSettings = { ...settings, periods };
       await updateUserSettings(uid, { periods });
       setSettings(newSettings);
-      toast.success('時限設定を保存しました');
+      Alert.alert('保存完了', '時限設定を保存しました');
     } catch {
-      toast.error('時限設定の保存に失敗しました');
+      Alert.alert('エラー', '時限設定の保存に失敗しました');
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Card>
-        <Text style={styles.sectionTitle}>時限設定</Text>
-        <Text style={styles.description}>各時限の開始・終了時間を設定します</Text>
-        <PeriodEditor periods={periods} onUpdate={setPeriods} />
-        <Button title="保存" onPress={handleSave} style={{ marginTop: 12 }} />
-      </Card>
+      <Animated.View entering={FadeInDown.delay(0 * 60).duration(300).springify()}>
+        <Card>
+          <Text style={styles.sectionTitle}>時限設定</Text>
+          <Text style={styles.description}>各時限の開始・終了時間を設定します</Text>
+          <PeriodEditor periods={periods} onUpdate={setPeriods} />
+          <Button title="保存" onPress={handleSave} style={{ marginTop: 12 }} />
+        </Card>
+      </Animated.View>
     </ScrollView>
   );
 }

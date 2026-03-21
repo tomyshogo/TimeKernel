@@ -1,0 +1,110 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "タイムカーネル",
+      "intents": [
+        {
+          "name": "GetTodayEventsIntent",
+          "slots": [],
+          "samples": [
+            "今日の予定を教えて",
+            "今日の予定",
+            "今日のスケジュール",
+            "今日は何がある",
+            "今日の予定は"
+          ]
+        },
+        {
+          "name": "GetDateEventsIntent",
+          "slots": [
+            {
+              "name": "date",
+              "type": "AMAZON.DATE"
+            }
+          ],
+          "samples": [
+            "{date} の予定を教えて",
+            "{date} の予定",
+            "{date} のスケジュール",
+            "{date} は何がある",
+            "明日の予定を教えて",
+            "明後日の予定"
+          ]
+        },
+        {
+          "name": "GetNextEventIntent",
+          "slots": [],
+          "samples": [
+            "次の予定は",
+            "次の予定を教えて",
+            "この後の予定",
+            "次は何がある"
+          ]
+        },
+        {
+          "name": "AddEventIntent",
+          "slots": [
+            {
+              "name": "date",
+              "type": "AMAZON.DATE"
+            },
+            {
+              "name": "time",
+              "type": "AMAZON.TIME"
+            }
+          ],
+          "samples": [
+            "予定を追加して",
+            "予定を入れて",
+            "予定を追加",
+            "{date} に予定を追加して",
+            "{date} の {time} に予定を追加して",
+            "{date} に予定を入れて"
+          ]
+        },
+        {
+          "name": "SetEventTitleIntent",
+          "slots": [
+            {
+              "name": "title",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "タイトルは {title}",
+            "{title} です",
+            "{title} で",
+            "{title} にして"
+          ]
+        },
+        {
+          "name": "GetShiftSummaryIntent",
+          "slots": [],
+          "samples": [
+            "今月のバイト代は",
+            "今月のバイト代を教えて",
+            "バイトの給料は",
+            "今月いくら稼いだ",
+            "バイト代",
+            "今月の給料"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "slots": [],
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "slots": [],
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "slots": [],
+          "samples": []
+        }
+      ]
+    }
+  }
+}

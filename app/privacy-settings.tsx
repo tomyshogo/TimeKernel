@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { useAuthStore } from '../src/stores/authStore';
@@ -53,6 +54,7 @@ export default function PrivacySettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Animated.View entering={FadeInDown.delay(0 * 60).duration(300).springify()}>
       <Card>
         <Text style={styles.sectionTitle}>デフォルト公開レベル</Text>
         <Text style={styles.desc}>
@@ -79,15 +81,30 @@ export default function PrivacySettingsScreen() {
           </TouchableOpacity>
         ))}
       </Card>
+      </Animated.View>
 
+      <Animated.View entering={FadeInDown.delay(1 * 60).duration(300).springify()}>
       <Card>
         <Text style={styles.sectionTitle}>データについて</Text>
         <Text style={styles.desc}>
-          予定データはFirestoreに保存され、セキュリティルールにより他ユーザーの非公開予定へのアクセスは制限されています。
-          共有カレンダーでは公開レベルに応じた情報のみが他メンバーに表示されます。
+          あなたのデータは以下のように管理されています。
+        </Text>
+        <Text style={styles.dataItem}>
+          ・個人の予定・時間割はお使いの端末内に保存されます
+        </Text>
+        <Text style={styles.dataItem}>
+          ・共有カレンダーの予定のみ、メンバー間で同期するためにクラウドに保存されます
+        </Text>
+        <Text style={styles.dataItem}>
+          ・共有カレンダーでは、上の公開レベル設定に応じた情報のみが他メンバーに表示されます
+        </Text>
+        <Text style={styles.dataItem}>
+          ・他のユーザーがあなたの非公開の予定を見ることはできません
         </Text>
       </Card>
+      </Animated.View>
 
+      <Animated.View entering={FadeInDown.delay(2 * 60).duration(300).springify()}>
       <Card>
         <Text style={[styles.sectionTitle, { color: '#e74c3c' }]}>
           アカウント削除
@@ -102,6 +119,7 @@ export default function PrivacySettingsScreen() {
           style={{ marginTop: 12 }}
         />
       </Card>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -125,4 +143,5 @@ const styles = StyleSheet.create({
   optionLabel: { fontSize: 15, fontWeight: '600', color: '#2c3e50' },
   optionLabelActive: { color: '#3498db' },
   optionDesc: { fontSize: 12, color: '#95a5a6', marginTop: 2 },
+  dataItem: { fontSize: 13, color: '#2c3e50', lineHeight: 20, marginBottom: 6 },
 });
